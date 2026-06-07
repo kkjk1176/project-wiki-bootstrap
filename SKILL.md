@@ -26,17 +26,17 @@ Supported actions:
 
 ## Workflow
 
-1. For initial wiki bootstrap or general update requests, run from the project root:
+1. For project bootstrap requests, choose the matching command and run it from the project root:
 
 ```bash
 npx project-wiki-bootstrap
 ```
 
-For projects that already have wiki/docs in another structure, run migration mode:
+Use the command variants as follows:
 
-```bash
-npx project-wiki-bootstrap --migrate
-```
+- New project wiki or normal update: `npx project-wiki-bootstrap`.
+- Existing wiki/docs need migration: `npx project-wiki-bootstrap --migrate`.
+- Install hook files without changing git config: `npx project-wiki-bootstrap --no-git-config`.
 
 When project terminology becomes important, initialize the optional glossary:
 
@@ -52,7 +52,6 @@ Map lifecycle requests to these internal operations:
 - Capture a project candidate: `npx project-wiki-bootstrap --capture-inbox --title "Candidate title" --content "Candidate content"`.
 - Check stale/pending pages: `npx project-wiki-bootstrap --prune-check`.
 - Review migrated inbox state: `npx project-wiki-bootstrap --review-migration`.
-- Install hook files without changing git config: `npx project-wiki-bootstrap --no-git-config`.
 
 2. Verify:
 

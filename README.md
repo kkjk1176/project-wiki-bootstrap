@@ -25,32 +25,32 @@ Detailed canonical, decision, meta, and source files are read on demand only whe
 
 ## Quick Start
 
-Use `npx` only for initial installation and bootstrap. After that, use the installed skill through Codex or Claude Code.
+Use `npx` only for skill installation and project bootstrap. After that, use the installed skill through Codex or Claude Code.
 
-User-level install, available across projects:
+Install the skill once for Codex and Claude Code:
 
 ```bash
 npx project-wiki-bootstrap install-skill --scope user --agents both
-npx project-wiki-bootstrap
 ```
 
-Project-level install, shared with one repository:
+Use `--scope project` instead of `--scope user` when the skill should live inside one repository:
 
 ```bash
 npx project-wiki-bootstrap install-skill --scope project --agents both
+```
+
+Then run one bootstrap command from the target project root:
+
+| Situation | Command |
+| --- | --- |
+| New project wiki or normal update | `npx project-wiki-bootstrap` |
+| Existing wiki/docs need migration | `npx project-wiki-bootstrap --migrate` |
+| Install hook files without changing git config | `npx project-wiki-bootstrap --no-git-config` |
+
+Typical first run:
+
+```bash
 npx project-wiki-bootstrap
-```
-
-Existing wiki/docs migration:
-
-```bash
-npx project-wiki-bootstrap --migrate
-```
-
-Install hook files without changing git config:
-
-```bash
-npx project-wiki-bootstrap --no-git-config
 ```
 
 Use `--agents codex` or `--agents claude` instead of `--agents both` when installing for only one agent.

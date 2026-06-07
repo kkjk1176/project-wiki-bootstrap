@@ -25,32 +25,32 @@
 
 ## 빠른 시작
 
-`npx`는 최초 설치와 bootstrap에만 사용합니다. 이후 운영은 Codex 또는 Claude Code에 설치된 skill을 통해 수행합니다.
+`npx`는 skill 설치와 프로젝트 bootstrap에만 사용합니다. 이후 운영은 Codex 또는 Claude Code에 설치된 skill을 통해 수행합니다.
 
-여러 프로젝트에서 쓰는 사용자 단위 설치:
+Codex와 Claude Code에 skill을 한 번 설치합니다.
 
 ```bash
 npx project-wiki-bootstrap install-skill --scope user --agents both
-npx project-wiki-bootstrap
 ```
 
-한 저장소에서 공유하는 프로젝트 단위 설치:
+skill을 한 저장소 안에 두려면 `--scope user` 대신 `--scope project`를 사용합니다.
 
 ```bash
 npx project-wiki-bootstrap install-skill --scope project --agents both
+```
+
+그 다음 대상 프로젝트 root에서 bootstrap 명령 중 하나를 실행합니다.
+
+| 상황 | 명령 |
+| --- | --- |
+| 새 project wiki 또는 일반 update | `npx project-wiki-bootstrap` |
+| 기존 wiki/docs migration 필요 | `npx project-wiki-bootstrap --migrate` |
+| git config를 변경하지 않고 hook 파일만 설치 | `npx project-wiki-bootstrap --no-git-config` |
+
+일반적인 첫 실행:
+
+```bash
 npx project-wiki-bootstrap
-```
-
-기존 wiki/docs 구조 migration:
-
-```bash
-npx project-wiki-bootstrap --migrate
-```
-
-git config를 변경하지 않고 hook 파일만 설치:
-
-```bash
-npx project-wiki-bootstrap --no-git-config
 ```
 
 한 agent에만 설치하려면 `--agents both` 대신 `--agents codex` 또는 `--agents claude`를 사용합니다.
