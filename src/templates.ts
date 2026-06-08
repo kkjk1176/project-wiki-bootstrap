@@ -108,11 +108,11 @@ export const startup = `${metadata("startup-router", "short", "wiki/meta/wiki-op
 
 ## Project State
 
-- Problem/opportunity: undecided.
-- Target users: undecided.
-- Core scenario: undecided.
-- Success criteria: undecided.
-- Initial scope: undecided.
+- Problem/opportunity: not selected yet.
+- Target users: not selected yet.
+- Core scenario: not selected yet.
+- Success criteria: not selected yet.
+- Initial scope: not selected yet.
 - Project content language: to be selected from user/project context.
 
 ## Recent Project Decisions
@@ -451,12 +451,23 @@ None.
   "wiki/decisions/README.md": `${metadata("project-decisions", "short", "wiki/meta/decision-policy.md", "project decision structure changes")}
 # Decisions
 
+## TL;DR
+
+- This directory preserves project decision history.
+- Current valid project specs belong in \`../canonical/\`.
+- Wiki operating decisions belong in \`../meta/\`.
+
 This directory preserves project decision history. Current valid project specs belong in \`../canonical/\`.
 
 Wiki operation, hook, bootstrap, lint, migration, and language-policy decisions belong in \`../meta/\`, not here.
 `,
   "wiki/decisions/log.md": `${metadata("project-decisions", "on-demand", "wiki/meta/decision-policy.md", "trivial project decisions need timestamp tracking")}
 # Decision Log
+
+## TL;DR
+
+- This page records lightweight timestamped project decisions when timing matters.
+- No project decisions have been logged yet.
 
 No project decisions yet.
 `,
@@ -474,6 +485,12 @@ No project decisions yet.
 `,
   "wiki/meta/wiki-ops-v1-decisions.md": `${metadata("wiki-meta-decisions", "medium", "self", "wiki operation, metadata, lint, migration, language policy, or storage-boundary decisions change")}
 # Wiki Operations v1 Decisions
+
+## TL;DR
+
+- This Decision Pack records accepted wiki operating choices for project-wiki-bootstrap.
+- It covers wiki structure, startup hook scope, metadata, language policy, git hook behavior, migration review, and inbox handling.
+- Project product decisions belong in \`wiki/decisions/\`, while these operating decisions stay in \`wiki/meta/\`.
 
 Status: accepted
 Scope: wiki operation

@@ -141,6 +141,7 @@ grep -q "Project wiki link-check" link-check-assets-ok.log
 grep -q "passed:" link-check-assets-ok.log
 node "$CLI" --quality-check > quality-check.log
 grep -q "Project wiki quality-check" quality-check.log
+grep -q "0 warnings" quality-check.log
 node "$CLI" --doctor > doctor.log
 grep -q "Project wiki link-check" doctor.log
 grep -q "Project wiki quality-check" doctor.log
