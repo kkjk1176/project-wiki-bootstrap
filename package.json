@@ -4,6 +4,32 @@
   "description": "Bootstrap a token-efficient project planning wiki for humans and LLM agents.",
   "license": "MIT",
   "type": "commonjs",
+  "keywords": [
+    "agents",
+    "claude-code",
+    "codex",
+    "llm",
+    "project-planning",
+    "wiki"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kkjk1176/project-wiki-bootstrap.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kkjk1176/project-wiki-bootstrap/issues"
+  },
+  "homepage": "https://github.com/kkjk1176/project-wiki-bootstrap#readme",
+  "files": [
+    "agents/",
+    "dist/",
+    "LICENSE",
+    "README.md",
+    "README.ko.md",
+    "README.ja.md",
+    "README.zh.md",
+    "SKILL.md"
+  ],
   "bin": {
     "project-wiki-bootstrap": "dist/init-project-wiki.js"
   },
@@ -16,10 +42,8 @@
     "test": "npm run build && npm run typecheck && bash tests/smoke.sh",
     "prepack": "npm run build"
   },
-  "dependencies": {
-    "typescript": "^6.0.3"
-  },
   "devDependencies": {
-    "@types/node": "^25.9.2"
+    "@types/node": "^25.9.2",
+    "typescript": "^6.0.3"
   }
 }
