@@ -5,33 +5,31 @@
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-brightgreen.svg)](https://nodejs.org/)
 [![Code evidence index](https://img.shields.io/badge/code%20evidence-node%3Asqlite-blue.svg)](https://nodejs.org/api/sqlite.html)
 
-Bootstrap a token-efficient project planning wiki for humans and LLM agents.
+Bootstrap a small project planning wiki for humans and LLM coding agents.
 
 Languages: [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh.md)
 
-The generated wiki keeps startup context small by loading only:
+The generated wiki keeps startup context small:
 
-- `wiki/startup.md`: compact current project context
-- `wiki/index.md`: router for detailed files to read next
+- `wiki/startup.md`: current project summary
+- `wiki/index.md`: router for detailed pages to read next
+- `wiki/canonical/`, `wiki/decisions/`, `wiki/sources/`, and `wiki/meta/`: detailed context loaded only when needed
 
-Detailed canonical, decision, meta, and source files are read on demand only when the current task needs them.
+## What You Get
 
-## Table of Contents
+Project Wiki Bootstrap creates a repo-local planning memory that coding agents can read predictably.
 
-- [Quick Start](#quick-start)
-- [Skill Actions](#skill-actions)
-- [Using The Skill](#using-the-skill)
-- [Code-Informed Canonicalization](#code-informed-canonicalization)
-- [What Gets Installed](#what-gets-installed)
-- [Generated Wiki Model](#generated-wiki-model)
-- [How It Works](#how-it-works)
-- [Policies And Side Effects](#policies-and-side-effects)
-- [Development](#development)
-- [License](#license)
+Core features:
+
+- Wiki-first project instructions for Codex and Claude Code
+- Session-start hooks that load only compact startup context
+- Canonical pages for current project facts, assumptions, risks, decisions, and sources
+- Migration support for existing markdown docs
+- Optional code evidence index for code-backed wiki updates in larger repositories
+
+The result is less repeated context gathering. Agents can start with the current project intent, read detailed pages only when needed, and leave project decisions in files that humans can review.
 
 ## Quick Start
-
-Use `npx` only for skill installation and project bootstrap. After that, use the installed skill through Codex or Claude Code.
 
 Install the skill once for Codex and Claude Code:
 
@@ -39,228 +37,144 @@ Install the skill once for Codex and Claude Code:
 npx project-wiki-bootstrap install-skill --scope user --agents both
 ```
 
-Use `--scope project` instead of `--scope user` when the skill should live inside one repository:
+Use `--scope project` to install the skill into the current repository instead:
 
 ```bash
 npx project-wiki-bootstrap install-skill --scope project --agents both
 ```
 
-Then run one bootstrap command from the target project root:
-
-| Situation | Command |
-| --- | --- |
-| New project wiki or normal update | `npx project-wiki-bootstrap` |
-| Existing wiki/docs need migration | `npx project-wiki-bootstrap --migrate` |
-| Install hook files without changing git config | `npx project-wiki-bootstrap --no-git-config` |
-
-Typical first run:
+Bootstrap or update a project wiki from the target project root:
 
 ```bash
 npx project-wiki-bootstrap
 ```
 
-Use `--agents codex` or `--agents claude` instead of `--agents both` when installing for only one agent.
+Common commands:
+
+| Situation | Command |
+| --- | --- |
+| Create or update the wiki | `npx project-wiki-bootstrap` |
+| Migrate existing docs/wiki content | `npx project-wiki-bootstrap --migrate` |
+| Install hook files without changing git config | `npx project-wiki-bootstrap --no-git-config` |
+| Install for only one agent | `npx project-wiki-bootstrap install-skill --agents codex` or `--agents claude` |
 
 ## Skill Actions
 
-Installing this package adds one skill, `project-wiki-bootstrap`, to Codex and/or Claude Code. That skill supports these project wiki actions:
+After installation, ask Codex or Claude Code to:
 
-- Bootstrap or update: create or refresh `AGENTS.md`, `CLAUDE.md`, `wiki/`, Codex hooks, Claude Code hooks, and git hook files.
-- Validate: check required files, metadata headers, routing, hook setup, executable bits, and git hook configuration.
-- Search: find relevant wiki pages by path, title, metadata, and body text.
-- Refresh index: update the auto-discovered page block in `wiki/index.md`.
-- Capture candidate: save a note into `wiki/inbox/project-candidates.md` without making it canonical truth.
-- Prune check: report active wiki pages that look pending, stale, proposed, or undecided.
-- Glossary init: create `wiki/canonical/glossary.md` when project terminology needs a canonical home.
-- Code-informed canonicalization: analyze existing code and update the wiki with code-backed project features, policies, constraints, domain rules, and open questions.
-- Code evidence index: build a disposable SQLite evidence cache for large repositories, including files, symbols, imports, routes, relationships, full-text search tables, and read-only query surfaces.
-- Migration: move an existing wiki aside, create a clean wiki, inventory legacy markdown, and write migration inboxes.
-- Migration review: sync processed migration inbox status into review and verification pages.
-- No-git-config setup: install hook files without changing `core.hooksPath`.
+- bootstrap, update, or validate the project wiki
+- search wiki pages
+- refresh `wiki/index.md`
+- capture a candidate note into `wiki/inbox/project-candidates.md`
+- report stale or undecided wiki pages
+- create `wiki/canonical/glossary.md`
+- migrate existing markdown docs into reviewable inboxes
+- analyze code and update wiki pages with code-backed evidence
 
-## Using The Skill
+Examples:
 
-Once installed, use natural language in Codex:
+```text
+Apply project-wiki-bootstrap to this project.
+Validate the project wiki setup.
+Search the project wiki for authentication decisions.
+Analyze apps/web and packages/api, then update the wiki from the code.
+Review the migrated wiki inbox.
+```
 
-- "Apply project-wiki-bootstrap to this project."
-- "Validate the project wiki setup."
-- "Search the project wiki for authentication decisions."
-- "Refresh the wiki index."
-- "Capture this as a project wiki candidate."
-- "Analyze the existing code and update the project wiki."
-- "Use only `src/` and `packages/api/` as evidence for the wiki update."
-- "Review the migrated wiki inbox."
-
-In Claude Code, invoke the skill directly or use natural language:
-
-- `/project-wiki-bootstrap`
-- "Initialize the project wiki."
-- "Check whether the project wiki is healthy."
-- "Read the codebase and canonicalize the project behavior into the wiki."
-- "Find wiki notes about release risks."
-
-The skill maps these requests to the appropriate lifecycle operation internally. The project wiki and hooks are still created only when bootstrap runs in a project root.
-
-## Code-Informed Canonicalization
-
-Use this action when the repository code is the best available source for what the project actually does.
-
-This is a skill workflow, not a separate CLI flag. Ask for the desired scope in natural language:
-
-- "Analyze the whole repository and update the wiki from the code."
-- "Analyze only `apps/web/` and `packages/core/`."
-- "Ignore generated files and tests unless they clarify behavior."
-
-For large repositories, the skill can build a regenerable SQLite code evidence index with `npx project-wiki-bootstrap --code-index` or `npx project-wiki-bootstrap --code-evidence-index`. Scope is passed internally with `--code-scope` or `--code-evidence-scope`. The cache lives under `.project-wiki/code-evidence.sqlite`, is not canonical wiki content, and should be treated as disposable analysis state.
-
-The evidence index is inspired by code graph tools, but uses project-wiki terminology and purpose: it is an evidence cache for wiki canonicalization, not a standalone code intelligence product. It stores file inventory, extraction profile, symbols, imports, routes, config signals, relationship edges, and full-text search tables so agents can find evidence without repeatedly scanning a large repository.
-
-Safety and runtime boundaries:
-
-- Custom cache output must stay under `.project-wiki/`; the tool refuses to delete or create code evidence databases elsewhere.
-- Code scopes must stay inside the project root.
-- Git repositories use `git ls-files --cached --others --exclude-standard` so `.gitignore` is respected.
-- `.env*` files are excluded from the code evidence index, except `.env.example`.
-- The base bootstrap package supports Node 18+, but code evidence indexing requires a Node runtime that provides `node:sqlite`; current tests run on Node 22.17.1.
-
-Useful inspection surfaces:
-
-| Purpose | Command |
-| --- | --- |
-| Build or refresh the evidence cache | `npx project-wiki-bootstrap --code-index --code-scope src` |
-| Show cache counts and metadata | `npx project-wiki-bootstrap --code-status` |
-| List indexed files and extraction profiles | `npx project-wiki-bootstrap --code-files` |
-| Search indexed symbols | `npx project-wiki-bootstrap --code-search-symbol Auth` |
-| Run read-only SQL | `npx project-wiki-bootstrap --code-query "select path from files order by path"` |
-
-The README does not publish a broad language support matrix. The index records extraction profiles per file, and only evidence with a strong extraction profile should be treated as code-proven. Lightweight inventory or heuristic findings must be handled as pointers for follow-up reading, not as complete language support claims.
-
-The workflow keeps code structure separate from canonical project truth:
-
-- Code structure, entrypoints, module relationships, read-on-demand routes, and evidence paths belong in `wiki/meta/` under a descriptive, project-specific file name chosen by the LLM.
-- Code-backed product behavior, project features, policies, constraints, terminology, domain rules, and operational facts belong in `wiki/canonical/`.
-- Important design rationale discovered from code can be recorded in `wiki/decisions/`.
-- Low-confidence interpretations, conflicts, or missing context should go to `wiki/inbox/` or `wiki/canonical/open-questions.md`, not directly into canonical truth.
-
-Do not use fixed canonical file names for this workflow beyond the existing starter docs. Choose or create files from the topic boundaries, expected read frequency, and token budget. Split large subjects into focused documents when one file would force agents to read unrelated content.
+In Claude Code, you can also invoke `/project-wiki-bootstrap`.
 
 ## What Gets Installed
 
 Project instruction files:
 
-- `AGENTS.md`: compact project-wide wiki-first instructions
-- `CLAUDE.md`: Claude Code compatibility file that imports `AGENTS.md`
-- `wiki/AGENTS.md`: detailed wiki-internal editing rules
+- `AGENTS.md`
+- `CLAUDE.md`
+- `wiki/AGENTS.md`
 
 Startup hooks:
 
-- `.codex/hooks.json`: Codex `SessionStart` hook registration
-- `.codex/hooks/wiki-session-start.js`: compact startup context injector
-- `.claude/settings.json`: Claude Code `SessionStart` hook registration
-- `.claude/hooks/wiki-session-start.js`: compact startup context injector for Claude Code
+- `.codex/hooks.json`
+- `.codex/hooks/wiki-session-start.js`
+- `.claude/settings.json`
+- `.claude/hooks/wiki-session-start.js`
 
-Git hook files:
+Optional git hook files:
 
-- `.githooks/prepare-commit-msg`: optional git commit hook entrypoint
-- `.githooks/wiki-commit-trailers.js`: wiki commit trailer generator
+- `.githooks/prepare-commit-msg`
+- `.githooks/wiki-commit-trailers.js`
 
-Wiki files and directories:
+Wiki directories:
 
-- `wiki/startup.md`: session-start summary
-- `wiki/index.md`: routing index with read/update/token-budget hints
-- `wiki/canonical/`: current project truth
-- `wiki/decisions/`: project decision history
-- `wiki/meta/`: wiki operating rules and decision policy
-- `wiki/sources/`: source summaries
-- `wiki/inbox/`: captured candidates that are not yet canonical truth
-- `wiki/migration/`: generated migration inventory, plan, verification, and review state
+- `wiki/canonical/`
+- `wiki/decisions/`
+- `wiki/meta/`
+- `wiki/sources/`
+- `wiki/inbox/`
+- `wiki/migration/`
 
-This project is independent of external orchestration layers. It does not create project memory files for any orchestration framework.
+## Code Evidence Index
 
-## Generated Wiki Model
+For large repositories, the skill can build a disposable SQLite evidence cache:
 
-- `wiki/startup.md`: compact session-start summary and project state.
-- `wiki/index.md`: router that tells humans and agents which detailed files to read or update.
-- `wiki/canonical/`: current project truth, such as brief, assumptions, risks, open questions, and optional glossary.
-- `wiki/decisions/`: project decision history, recent decisions, Decision Pack template, and Full ADR template.
-- `wiki/meta/`: wiki operating model, decision policy, bootstrap decisions, language policy, lint and migration rules.
-- `wiki/sources/`: source summaries and references that informed the wiki.
-- `wiki/inbox/`: captured candidates that are not yet canonical truth.
-- `wiki/migration/`: generated migration inventory, plan, verification, and review state.
+```bash
+npx project-wiki-bootstrap --code-index --code-scope src
+```
 
-## How It Works
+The cache lives under `.project-wiki/` and is regenerated as needed. It is evidence for wiki updates, not canonical wiki content.
 
-LLM coding agents are most useful when they can quickly recover current project intent, decisions, assumptions, and risks without rereading long chat history or loading a large documentation tree.
+Useful commands:
 
-This project creates a small, durable wiki structure that separates always-useful routing context from detailed project knowledge. It does not replace product docs, architecture docs, or issue trackers; it gives humans and agents a low-token project-planning source of truth that stays close to the repository.
+| Purpose | Command |
+| --- | --- |
+| Build or refresh the cache | `npx project-wiki-bootstrap --code-index --code-scope src` |
+| Show counts | `npx project-wiki-bootstrap --code-status` |
+| List indexed files | `npx project-wiki-bootstrap --code-files` |
+| Search symbols | `npx project-wiki-bootstrap --code-search-symbol Auth` |
+| Run read-only SQL | `npx project-wiki-bootstrap --code-query "select path from files order by path"` |
 
-Core design points:
+Code evidence indexing requires a Node runtime with `node:sqlite`. The base bootstrap command supports Node 18+, but the evidence index currently needs a newer Node release that includes `node:sqlite`.
 
-- Token-efficient startup context: only `wiki/startup.md` and `wiki/index.md` are intended for initial context.
-- Read On Demand routing: detailed canonical docs, decisions, source notes, migration pages, and meta docs are read only when needed.
-- Project truth separation: current project truth lives in `wiki/canonical/`; rationale and history live in `wiki/decisions/`; wiki operating rules live in `wiki/meta/`.
-- Agent instruction support: generates compact project-level instructions for Codex and Claude Code.
-- Codex and Claude Code startup hooks: registers `SessionStart` hooks that inject compact wiki startup context into both tools.
-- Git commit trailers: installs an optional `prepare-commit-msg` hook that records wiki impact in commit trailers.
-- Idempotent bootstrap: rerunning the script updates managed operating files while preserving starter project wiki pages.
-- npx-first skill installation: installs Codex and Claude Code skill wrappers to user or project scope without requiring a global npm install.
+## Language Support Matrix
 
-Typical workflow:
+The matrix lists only languages with implemented symbol/import extraction. Other recognized extensions are inventory-only and are not counted as language support.
 
-1. Bootstrap the wiki in a project.
-2. At session start, read `wiki/startup.md` and `wiki/index.md`.
-3. Read detailed wiki pages only when the current task needs them.
-4. When project planning content changes, update the relevant canonical, decision, source, or meta page in the same turn.
-5. Ask Codex or Claude Code to validate, search, refresh, capture, or migrate the wiki through the installed skill.
-6. Let the generated git hook append wiki trailers when committing wiki-related changes.
+| Language | Extensions | Extraction profile | Indexed evidence |
+| --- | --- | --- | --- |
+| TypeScript | `.ts`, `.tsx`, `.cts`, `.mts` | `typescript-ast` | functions, classes, methods, variables, interfaces, types, enums, imports, exports, calls, common HTTP routes |
+| JavaScript | `.js`, `.jsx`, `.cjs`, `.mjs` | `typescript-ast` | functions, classes, methods, variables, imports, exports, `require()` calls, calls, common HTTP routes |
+| Python | `.py` | `python-light` | functions, classes, `import`, `from ... import` |
 
-This project is inspired by Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern: a persistent markdown wiki maintained with LLM help, instead of repeatedly reconstructing context from raw documents or chat history.
+Config files (`.json`, `.yaml`, `.yml`, `.toml`, `.env.example`, `package.json`, `tsconfig.json`) are indexed separately as configuration evidence.
 
 ## Policies And Side Effects
 
-Git side effect:
-
 - In a git repository, bootstrap configures `git config core.hooksPath .githooks` by default.
-- Use `npx project-wiki-bootstrap --no-git-config` to install hook files without changing `core.hooksPath`.
-- If a project already uses another `core.hooksPath`, review before running or reset the git config afterward.
+- Use `--no-git-config` to install hook files without changing `core.hooksPath`.
+- Existing `AGENTS.md`, `CLAUDE.md`, and `wiki/AGENTS.md` files are preserved outside project-wiki marker blocks.
+- Generated operating documents are English by default. Project canonical wiki content should follow the user's instruction or the project's existing language.
 
-File preservation:
+## Inspiration
 
-- Existing `AGENTS.md`, `CLAUDE.md`, and `wiki/AGENTS.md` files are not overwritten wholesale.
-- Bootstrap appends its marker-bounded project-wiki section when no managed section exists.
-- On rerun, bootstrap replaces only the content between its own `PROJECT-WIKI-*` markers and preserves surrounding project-specific content.
+This project is inspired by Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern: keep a persistent markdown wiki close to the work instead of reconstructing project context from long chat history.
 
-Language policy:
-
-- This repository README is English by default for GitHub distribution.
-- Localized documentation is available in [Korean](README.ko.md), [Japanese](README.ja.md), and [Simplified Chinese](README.zh.md).
-- Generated operating documents are English by default, including root `AGENTS.md`, `wiki/AGENTS.md`, `wiki/startup.md`, `wiki/index.md`, migration operating pages, and wiki meta pages.
-- Project canonical wiki content does not default to Korean or English. The LLM should choose the language from explicit user instruction, existing project language, source documents, and team context. When no signal exists, prefer the language already used in the current interaction or repository.
-
-Agent compatibility:
-
-- Codex reads `AGENTS.md` and uses `.codex/hooks/wiki-session-start.js` for compact startup context.
-- Claude Code reads `CLAUDE.md`, not `AGENTS.md`, and uses `.claude/hooks/wiki-session-start.js` for the same compact startup context.
-- The generated `CLAUDE.md` imports `AGENTS.md` with `@AGENTS.md`, keeping project-wide rules in one place.
+Project Wiki Bootstrap adapts that idea into an installable bootstrap for Codex and Claude Code, with repo-local instructions, startup hooks, migration helpers, and optional code evidence.
 
 ## Development
 
-The source is TypeScript and the committed `dist/` directory is the compiled JavaScript used by npm bin and skill installations.
+The source is TypeScript. The committed `dist/` directory is the compiled JavaScript used by the npm binary and skill installation.
 
 Repository layout:
 
-- `src/init-project-wiki.ts`: CLI entrypoint and top-level orchestration.
-- `src/args.ts`: command-line argument parsing and mode flags.
-- `src/types.ts`: shared TypeScript contracts for statuses, migration rows, hook config, query results, and prune candidates.
-- `src/workspace.ts`: repository-relative filesystem helpers, markdown metadata helpers, executable bits, and common command checks.
-- `src/hooks.ts`: Codex and Claude Code `SessionStart` hook generation, git hook generation, and git hook configuration.
-- `src/install-skill.ts`: npx-driven user/project skill installer for Codex and Claude Code.
-- `src/templates.ts`: generated `AGENTS.md`, `CLAUDE.md`, wiki starter pages, wiki meta pages, and source summary templates.
-- `src/code-index.ts`: optional SQLite code evidence index builder, status/files/symbol inspection modes, and read-only SQL query mode for large repositories.
-- `src/wiki-files.ts`: wiki file discovery, markdown table parsing, wiki link helpers, metadata summaries, and marked-section preservation.
-- `src/migration.ts`: existing wiki migration, migration inboxes, migration verification, and semantic review sync.
-- `src/modes.ts`: lifecycle commands such as `--lint`, `--query`, `--refresh-index`, `--capture-inbox`, and `--prune-check`.
-- `dist/`: build output committed for zero-build execution.
+- `src/init-project-wiki.ts`: CLI entrypoint
+- `src/args.ts`: command-line argument parsing
+- `src/hooks.ts`: Codex, Claude Code, and git hook generation
+- `src/install-skill.ts`: user/project skill installer
+- `src/templates.ts`: generated instruction and wiki templates
+- `src/code-index.ts`: optional SQLite code evidence index
+- `src/wiki-files.ts`: wiki file discovery and markdown helpers
+- `src/migration.ts`: existing wiki migration
+- `src/modes.ts`: lint, search, refresh, capture, and prune modes
+- `dist/`: compiled output
 
 Development commands:
 
@@ -272,7 +186,7 @@ npm test
 npm pack --dry-run
 ```
 
-When editing TypeScript files under `src/`, rebuild before committing so the matching `dist/` files stay current.
+When editing TypeScript files under `src/`, rebuild before committing so `dist/` stays current.
 
 ## License
 
