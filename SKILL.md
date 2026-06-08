@@ -1,13 +1,13 @@
 ---
 name: project-wiki-bootstrap
-description: Bootstrap, update, or migrate a token-efficient project planning wiki. Use when the user asks to initialize, install, create, update, improve, migrate, adopt existing docs, or apply the reusable ./wiki + AGENTS.md + compact SessionStart hook setup for project planning, canonical docs, decision logs, startup summaries, or Karpathy-style LLM wiki workflow.
+description: Bootstrap, update, migrate, or code-canonicalize a token-efficient project planning wiki. Use when the user asks to initialize, install, create, update, improve, migrate, adopt existing docs, analyze existing code into project wiki truth, or apply the reusable ./wiki + AGENTS.md + compact SessionStart hook setup for project planning, canonical docs, decision logs, startup summaries, or Karpathy-style LLM wiki workflow.
 metadata:
   short-description: Bootstrap project planning wiki
 ---
 
 # Project Wiki Bootstrap
 
-Use this skill to install, update, validate, search, or migrate a token-efficient planning wiki in the current project.
+Use this skill to install, update, validate, search, migrate, or code-canonicalize a token-efficient planning wiki in the current project.
 
 Users should normally interact with this skill through natural language, or through `/project-wiki-bootstrap` in Claude Code. Do not ask users to run lifecycle flags directly unless they explicitly want shell commands; execute the matching `npx project-wiki-bootstrap` operation yourself from the project root.
 
@@ -20,6 +20,8 @@ Supported actions:
 - Capture a candidate note into the wiki inbox.
 - Check for pending, stale, proposed, or undecided wiki pages.
 - Initialize a project glossary.
+- Analyze existing code and canonicalize code-backed project behavior, features, policies, constraints, terminology, domain rules, and open questions into the wiki.
+- Build and query an optional SQLite code evidence index for large repositories.
 - Migrate an existing wiki/docs structure.
 - Review processed migration inbox state.
 - Install hook files without changing git config.
@@ -83,6 +85,71 @@ npx project-wiki-bootstrap --lint
 Use `--query` and `--prune-check` for read-only inspection. Use `--refresh-index`, `--capture-inbox`, `--glossary-init`, and `--migrate` only when updating wiki files is intended.
 
 Use `--review-migration` or `--semantic-migrate` after migration inbox rows are processed. It syncs inbox statuses into `wiki/migration/review.md` and `wiki/migration/verification.md`.
+
+## Code-Informed Canonicalization
+
+Use this workflow when the user asks to analyze existing code and turn what the code proves into project wiki truth. This is a skill workflow, not a separate CLI flag.
+
+For large repositories or repeated analysis, build a regenerable SQLite code evidence index before canonicalization:
+
+```bash
+npx project-wiki-bootstrap --code-index
+```
+
+`--code-evidence-index` is an equivalent explicit alias. Use the old `--code-index` form only as the short compatibility name.
+
+Pass user-requested code scopes internally with `--code-scope`:
+
+```bash
+npx project-wiki-bootstrap --code-index --code-scope src --code-scope packages/api
+```
+
+Run read-only SQL over the cache with `--code-query`:
+
+```bash
+npx project-wiki-bootstrap --code-query "select path, language from files order by path"
+```
+
+Use the built-in inspection surfaces before writing custom SQL when they are enough:
+
+```bash
+npx project-wiki-bootstrap --code-status
+npx project-wiki-bootstrap --code-files
+npx project-wiki-bootstrap --code-search-symbol Auth
+```
+
+The code evidence index lives at `.project-wiki/code-evidence.sqlite`. It is not canonical wiki content, should not be copied into `wiki/`, and can be deleted and regenerated.
+
+Treat the index as evidence support, not as a complete language-support guarantee. Strong extraction profiles can support code-proven claims; lightweight inventory and heuristic findings are pointers for follow-up reading.
+
+Safety and runtime boundaries:
+
+- Keep custom cache output under `.project-wiki/`; do not write disposable evidence databases into `wiki/` canonical content or elsewhere in the repository.
+- Keep code scopes inside the project root.
+- In git repositories, the indexer respects `.gitignore` through `git ls-files --cached --others --exclude-standard`.
+- `.env*` files are excluded from the index, except `.env.example`.
+- Code evidence indexing requires a Node runtime that provides `node:sqlite`; if unavailable, report the runtime requirement and continue with normal repository inspection.
+
+Scope selection is handled through the user's natural-language request:
+
+- Whole repository if the user asks for all code or gives no narrower scope.
+- One or more explicit directories, packages, apps, services, or files when the user names them.
+- Exclude generated files, vendored files, lockfiles, build output, and tests unless they are needed to understand behavior, contracts, or risk.
+
+Execution contract:
+
+1. Bootstrap the wiki first if the project wiki is missing.
+2. Inspect the requested code scope using normal repository-reading tools.
+3. Separate evidence mapping from canonical truth:
+   - Code structure, entrypoints, module relationships, execution flows, read-on-demand routes, and evidence paths belong under `wiki/meta/` with descriptive project-specific filenames chosen by the LLM.
+   - Code-backed current project behavior, features, policies, constraints, terminology, domain rules, and operational facts belong under `wiki/canonical/`.
+   - Important design rationale or tradeoffs inferred from code may belong under `wiki/decisions/` when they meet the decision policy.
+   - Unclear, conflicting, or low-confidence interpretations belong in `wiki/inbox/` or `wiki/canonical/open-questions.md`, not directly in canonical truth.
+4. Do not use fixed canonical filenames beyond existing starter docs. Choose or create files from topic boundaries, expected read frequency, and token budget.
+5. Split large subjects into focused documents when a single file would force agents to read unrelated content.
+6. Cite concrete evidence with repository-relative paths and distinguish code-proven facts from inference.
+7. Update `wiki/startup.md` and `wiki/index.md` only with compact routing hints, not large code summaries.
+8. Run `npx project-wiki-bootstrap --refresh-index` and `npx project-wiki-bootstrap --lint` after wiki edits when practical.
 
 It installs:
 

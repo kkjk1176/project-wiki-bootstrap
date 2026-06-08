@@ -1,4 +1,5 @@
 node_modules/
+.project-wiki/
 .DS_Store
 coverage/
 tmp/

@@ -92,6 +92,83 @@ grep -q "Custom Claude content before the compatibility section." CLAUDE.md
 grep -q "Custom Claude content after a heading that matches the bootstrap fallback heading." CLAUDE.md
 grep -q "PROJECT-WIKI-CLAUDE:START" CLAUDE.md
 
+mkdir "$TMPDIR/code-index"
+cd "$TMPDIR/code-index"
+git init -q
+mkdir -p src
+mkdir -p ignored
+printf "ignored/\n.env\n.env.local\n" > .gitignore
+cat > package.json <<'EOF'
+{
+  "scripts": {
+    "dev": "node src/app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0"
+  }
+}
+EOF
+cat > src/app.js <<'EOF'
+const express = require("express");
+const app = express();
+
+function healthHandler(req, res) {
+  res.json({ ok: true });
+}
+
+app.get("/health", healthHandler);
+EOF
+cat > ignored/ignored.js <<'EOF'
+function ignoredHandler() {}
+EOF
+cat > .env <<'EOF'
+SECRET_TOKEN=do-not-index
+EOF
+cat > .env.local <<'EOF'
+LOCAL_SECRET=do-not-index
+EOF
+cat > .env.example <<'EOF'
+PUBLIC_EXAMPLE=placeholder
+EOF
+node "$CLI" --code-index --code-scope src --code-scope package.json --code-scope .env.example > code-index.log
+test -f .project-wiki/code-evidence.sqlite
+grep -q "files: 3" code-index.log
+node "$CLI" --code-query "select path from files order by path" > code-query.json
+grep -q "src/app.js" code-query.json
+node "$CLI" --code-files > code-files.json
+grep -q "typescript-ast" code-files.json
+! grep -q "ignored/ignored.js" code-files.json
+grep -q ".env.example" code-files.json
+! grep -q ".env.local" code-files.json
+! grep -q "SECRET_TOKEN" code-files.json
+! grep -q "LOCAL_SECRET" code-files.json
+node "$CLI" --code-status > code-status.json
+grep -q "edges" code-status.json
+node "$CLI" --code-search-symbol healthHandler > code-symbols.json
+grep -q "healthHandler" code-symbols.json
+node "$CLI" --code-query "select route from routes where route = '/health'" > code-routes.json
+grep -q "/health" code-routes.json
+node "$CLI" --code-query "select kind from edges where kind = 'route_to_handler'" > code-edges.json
+grep -q "route_to_handler" code-edges.json
+node "$CLI" --code-index --code-index-out .project-wiki/custom.sqlite --code-scope src > custom-code-index.log
+test -f .project-wiki/custom.sqlite
+if node "$CLI" --code-index --code-index-out ../outside.sqlite > bad-code-index-out.log 2>&1; then
+  echo "expected --code-index-out outside project-wiki to fail" >&2
+  exit 1
+fi
+test ! -f ../outside.sqlite
+grep -q "must stay inside .project-wiki/" bad-code-index-out.log
+if node "$CLI" --code-index --code-scope ../outside > bad-code-scope.log 2>&1; then
+  echo "expected --code-scope outside project root to fail" >&2
+  exit 1
+fi
+grep -q "must stay inside the project root" bad-code-scope.log
+if node "$CLI" --code-index --code-status > bad-code-mode.log 2>&1; then
+  echo "expected mixed code evidence modes to fail" >&2
+  exit 1
+fi
+grep -q "Use one code evidence mode" bad-code-mode.log
+
 mkdir "$TMPDIR/skill-install"
 cd "$TMPDIR/skill-install"
 HOME="$TMPDIR/home" node "$CLI" install-skill --scope user --agents codex,claude

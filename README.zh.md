@@ -1,5 +1,10 @@
 # Project Wiki Bootstrap
 
+[![npm version](https://img.shields.io/npm/v/project-wiki-bootstrap.svg)](https://www.npmjs.com/package/project-wiki-bootstrap)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-brightgreen.svg)](https://nodejs.org/)
+[![Code evidence index](https://img.shields.io/badge/code%20evidence-node%3Asqlite-blue.svg)](https://nodejs.org/api/sqlite.html)
+
 为人类和 LLM 代理 bootstrap 一个低 token 的项目规划 wiki。
 
 语言: [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh.md)
@@ -16,6 +21,7 @@
 - [快速开始](#快速开始)
 - [Skill Actions](#skill-actions)
 - [使用 Skill](#使用-skill)
+- [基于代码的正本化](#基于代码的正本化)
 - [安装内容](#安装内容)
 - [生成的 Wiki 模型](#生成的-wiki-模型)
 - [工作方式](#工作方式)
@@ -66,6 +72,8 @@ npx project-wiki-bootstrap
 - Capture candidate: 将内容作为候选保存到 `wiki/inbox/project-candidates.md`，但不把它变成 canonical truth。
 - Prune check: 报告看起来处于 pending、stale、proposed 或 undecided 状态的 active wiki page。
 - Glossary init: 当项目术语需要 canonical 归属位置时，创建 `wiki/canonical/glossary.md`。
+- Code-informed canonicalization: 分析现有代码，并把代码确认的项目功能、策略、约束、领域规则和 open question 反映到 wiki 中。
+- Code evidence index: 为大型仓库构建可丢弃的 SQLite 证据 cache，提供 file、symbol、import、route、关系、full-text search table 和 read-only query surface。
 - Migration: 保留现有 wiki，创建新的 wiki，并生成 legacy markdown inventory 与 migration inbox。
 - Migration review: 将已处理的 migration inbox status 同步到 review 和 verification page。
 - No-git-config setup: 不修改 `core.hooksPath`，只安装 hook 文件。
@@ -79,6 +87,8 @@ npx project-wiki-bootstrap
 - "在 project wiki 中查找认证相关决策。"
 - "刷新 wiki index。"
 - "把这段内容捕获为 project wiki candidate。"
+- "分析现有代码并更新 project wiki。"
+- "只以 `src/` 和 `packages/api/` 为依据更新 wiki。"
 - "检查迁移后的 wiki inbox。"
 
 在 Claude Code 中，可以直接调用 skill 或使用自然语言。
@@ -86,9 +96,53 @@ npx project-wiki-bootstrap
 - `/project-wiki-bootstrap`
 - "初始化项目 wiki。"
 - "检查项目 wiki 是否正常。"
+- "读取代码库，并把项目行为整理成 wiki 正本。"
 - "查找关于发布风险的 wiki notes。"
 
 Skill 会在内部把这些请求映射到合适的 lifecycle operation。项目 wiki 和 hook 只有在项目根目录执行 bootstrap 时才会创建。
+
+## 基于代码的正本化
+
+当仓库代码是说明项目实际行为的最佳依据时，使用这个 action。
+
+这不是单独的 CLI flag，而是 skill workflow。所需范围用自然语言指定。
+
+- "分析整个仓库，并基于代码更新 wiki。"
+- "只分析 `apps/web/` 和 `packages/core/`。"
+- "如果 generated file 和 test 对理解行为没有帮助，就排除它们。"
+
+对于大型仓库，skill 可以通过 `npx project-wiki-bootstrap --code-index` 或 `npx project-wiki-bootstrap --code-evidence-index` 构建可重新生成的 SQLite code evidence index。范围在内部通过 `--code-scope` 或 `--code-evidence-scope` 传入。cache 位于 `.project-wiki/code-evidence.sqlite`，不是 canonical wiki content，应视为可丢弃的分析状态。
+
+这个 evidence index 受到 code graph 工具思路的影响，但按 project-wiki 的术语和目的设计。它不是独立的 code intelligence 产品，而是用于 wiki 正本化的证据 cache。为了避免在大型仓库中反复扫描，它保存 file inventory、extraction profile、symbol、import、route、config signal、relationship edge 和 full-text search table，帮助 agent 快速找到证据。
+
+安全性和 runtime 边界:
+
+- Custom cache output 必须位于 `.project-wiki/` 下。此工具不会删除或创建其他位置的 code evidence database。
+- Code scope 必须位于 project root 内部。
+- 在 Git repository 中会使用 `git ls-files --cached --others --exclude-standard`，因此会尊重 `.gitignore`。
+- 除 `.env.example` 外，`.env*` 文件都会从 code evidence index 中排除。
+- 基础 bootstrap package 支持 Node 18+，但 code evidence indexing 需要提供 `node:sqlite` 的 Node runtime。当前 test 在 Node 22.17.1 上运行。
+
+有用的 inspection surface:
+
+| 目的 | 命令 |
+| --- | --- |
+| build 或 refresh evidence cache | `npx project-wiki-bootstrap --code-index --code-scope src` |
+| 查看 cache count 和 metadata | `npx project-wiki-bootstrap --code-status` |
+| 列出 indexed file 与 extraction profile | `npx project-wiki-bootstrap --code-files` |
+| 搜索 indexed symbol | `npx project-wiki-bootstrap --code-search-symbol Auth` |
+| 执行 read-only SQL | `npx project-wiki-bootstrap --code-query "select path from files order by path"` |
+
+README 不发布广泛的语言支持 matrix。index 会记录每个 file 的 extraction profile，只有拥有强 extraction profile 的证据才应被视为 code-proven。Lightweight inventory 或 heuristic finding 应作为后续阅读的 pointer，而不是完整语言支持声明。
+
+这个 workflow 会分离代码结构和项目正本。
+
+- 代码结构、entrypoint、module 关系、read-on-demand route 和证据路径放在 `wiki/meta/` 下，由 LLM 选择描述性、项目特定的文件名。
+- 代码确认的 product behavior、project feature、policy、constraint、terminology、domain rule 和 operational fact 放在 `wiki/canonical/`。
+- 从代码中发现的重要设计理由可以记录在 `wiki/decisions/`。
+- 低置信度解释、冲突或缺失上下文不要直接放入 canonical truth，而应放入 `wiki/inbox/` 或 `wiki/canonical/open-questions.md`。
+
+这个 workflow 不会在现有 starter doc 之外使用固定 canonical 文件名。根据主题边界、预期读取频率和 token budget 选择或创建文件。当单个文件会迫使 agent 阅读无关内容时，把它拆分成更聚焦的文档。
 
 ## 安装内容
 
@@ -202,6 +256,7 @@ Git 副作用:
 - `src/hooks.ts`: Codex 和 Claude Code `SessionStart` hook 生成、git hook 生成和 git hook 配置。
 - `src/install-skill.ts`: 面向 Codex 和 Claude Code 的 npx 驱动用户/项目 skill installer。
 - `src/templates.ts`: 生成的 `AGENTS.md`、`CLAUDE.md`、wiki starter page、wiki meta page 和 source summary template。
+- `src/code-index.ts`: 面向大型仓库的可选 SQLite code evidence index builder、status/files/symbol inspection mode 和 read-only SQL query mode。
 - `src/wiki-files.ts`: wiki file discovery、markdown table parsing、wiki link helper、metadata summary 和 marked-section preservation。
 - `src/migration.ts`: 现有 wiki migration、migration inbox、migration verification 和 semantic review sync。
 - `src/modes.ts`: `--lint`、`--query`、`--refresh-index`、`--capture-inbox`、`--prune-check` 等 lifecycle command。

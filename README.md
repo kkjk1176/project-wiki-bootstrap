@@ -1,5 +1,10 @@
 # Project Wiki Bootstrap
 
+[![npm version](https://img.shields.io/npm/v/project-wiki-bootstrap.svg)](https://www.npmjs.com/package/project-wiki-bootstrap)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-brightgreen.svg)](https://nodejs.org/)
+[![Code evidence index](https://img.shields.io/badge/code%20evidence-node%3Asqlite-blue.svg)](https://nodejs.org/api/sqlite.html)
+
 Bootstrap a token-efficient project planning wiki for humans and LLM agents.
 
 Languages: [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh.md)
@@ -16,6 +21,7 @@ Detailed canonical, decision, meta, and source files are read on demand only whe
 - [Quick Start](#quick-start)
 - [Skill Actions](#skill-actions)
 - [Using The Skill](#using-the-skill)
+- [Code-Informed Canonicalization](#code-informed-canonicalization)
 - [What Gets Installed](#what-gets-installed)
 - [Generated Wiki Model](#generated-wiki-model)
 - [How It Works](#how-it-works)
@@ -66,6 +72,8 @@ Installing this package adds one skill, `project-wiki-bootstrap`, to Codex and/o
 - Capture candidate: save a note into `wiki/inbox/project-candidates.md` without making it canonical truth.
 - Prune check: report active wiki pages that look pending, stale, proposed, or undecided.
 - Glossary init: create `wiki/canonical/glossary.md` when project terminology needs a canonical home.
+- Code-informed canonicalization: analyze existing code and update the wiki with code-backed project features, policies, constraints, domain rules, and open questions.
+- Code evidence index: build a disposable SQLite evidence cache for large repositories, including files, symbols, imports, routes, relationships, full-text search tables, and read-only query surfaces.
 - Migration: move an existing wiki aside, create a clean wiki, inventory legacy markdown, and write migration inboxes.
 - Migration review: sync processed migration inbox status into review and verification pages.
 - No-git-config setup: install hook files without changing `core.hooksPath`.
@@ -79,6 +87,8 @@ Once installed, use natural language in Codex:
 - "Search the project wiki for authentication decisions."
 - "Refresh the wiki index."
 - "Capture this as a project wiki candidate."
+- "Analyze the existing code and update the project wiki."
+- "Use only `src/` and `packages/api/` as evidence for the wiki update."
 - "Review the migrated wiki inbox."
 
 In Claude Code, invoke the skill directly or use natural language:
@@ -86,9 +96,53 @@ In Claude Code, invoke the skill directly or use natural language:
 - `/project-wiki-bootstrap`
 - "Initialize the project wiki."
 - "Check whether the project wiki is healthy."
+- "Read the codebase and canonicalize the project behavior into the wiki."
 - "Find wiki notes about release risks."
 
 The skill maps these requests to the appropriate lifecycle operation internally. The project wiki and hooks are still created only when bootstrap runs in a project root.
+
+## Code-Informed Canonicalization
+
+Use this action when the repository code is the best available source for what the project actually does.
+
+This is a skill workflow, not a separate CLI flag. Ask for the desired scope in natural language:
+
+- "Analyze the whole repository and update the wiki from the code."
+- "Analyze only `apps/web/` and `packages/core/`."
+- "Ignore generated files and tests unless they clarify behavior."
+
+For large repositories, the skill can build a regenerable SQLite code evidence index with `npx project-wiki-bootstrap --code-index` or `npx project-wiki-bootstrap --code-evidence-index`. Scope is passed internally with `--code-scope` or `--code-evidence-scope`. The cache lives under `.project-wiki/code-evidence.sqlite`, is not canonical wiki content, and should be treated as disposable analysis state.
+
+The evidence index is inspired by code graph tools, but uses project-wiki terminology and purpose: it is an evidence cache for wiki canonicalization, not a standalone code intelligence product. It stores file inventory, extraction profile, symbols, imports, routes, config signals, relationship edges, and full-text search tables so agents can find evidence without repeatedly scanning a large repository.
+
+Safety and runtime boundaries:
+
+- Custom cache output must stay under `.project-wiki/`; the tool refuses to delete or create code evidence databases elsewhere.
+- Code scopes must stay inside the project root.
+- Git repositories use `git ls-files --cached --others --exclude-standard` so `.gitignore` is respected.
+- `.env*` files are excluded from the code evidence index, except `.env.example`.
+- The base bootstrap package supports Node 18+, but code evidence indexing requires a Node runtime that provides `node:sqlite`; current tests run on Node 22.17.1.
+
+Useful inspection surfaces:
+
+| Purpose | Command |
+| --- | --- |
+| Build or refresh the evidence cache | `npx project-wiki-bootstrap --code-index --code-scope src` |
+| Show cache counts and metadata | `npx project-wiki-bootstrap --code-status` |
+| List indexed files and extraction profiles | `npx project-wiki-bootstrap --code-files` |
+| Search indexed symbols | `npx project-wiki-bootstrap --code-search-symbol Auth` |
+| Run read-only SQL | `npx project-wiki-bootstrap --code-query "select path from files order by path"` |
+
+The README does not publish a broad language support matrix. The index records extraction profiles per file, and only evidence with a strong extraction profile should be treated as code-proven. Lightweight inventory or heuristic findings must be handled as pointers for follow-up reading, not as complete language support claims.
+
+The workflow keeps code structure separate from canonical project truth:
+
+- Code structure, entrypoints, module relationships, read-on-demand routes, and evidence paths belong in `wiki/meta/` under a descriptive, project-specific file name chosen by the LLM.
+- Code-backed product behavior, project features, policies, constraints, terminology, domain rules, and operational facts belong in `wiki/canonical/`.
+- Important design rationale discovered from code can be recorded in `wiki/decisions/`.
+- Low-confidence interpretations, conflicts, or missing context should go to `wiki/inbox/` or `wiki/canonical/open-questions.md`, not directly into canonical truth.
+
+Do not use fixed canonical file names for this workflow beyond the existing starter docs. Choose or create files from the topic boundaries, expected read frequency, and token budget. Split large subjects into focused documents when one file would force agents to read unrelated content.
 
 ## What Gets Installed
 
@@ -202,6 +256,7 @@ Repository layout:
 - `src/hooks.ts`: Codex and Claude Code `SessionStart` hook generation, git hook generation, and git hook configuration.
 - `src/install-skill.ts`: npx-driven user/project skill installer for Codex and Claude Code.
 - `src/templates.ts`: generated `AGENTS.md`, `CLAUDE.md`, wiki starter pages, wiki meta pages, and source summary templates.
+- `src/code-index.ts`: optional SQLite code evidence index builder, status/files/symbol inspection modes, and read-only SQL query mode for large repositories.
 - `src/wiki-files.ts`: wiki file discovery, markdown table parsing, wiki link helpers, metadata summaries, and marked-section preservation.
 - `src/migration.ts`: existing wiki migration, migration inboxes, migration verification, and semantic review sync.
 - `src/modes.ts`: lifecycle commands such as `--lint`, `--query`, `--refresh-index`, `--capture-inbox`, and `--prune-check`.

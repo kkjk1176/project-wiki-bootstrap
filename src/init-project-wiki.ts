@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { captureInboxMode, command, glossaryMode, lintMode, migrateMode, noGitConfigMode, pruneCheckMode, queryTerm, refreshIndexMode, reviewMigrationMode } from "./args";
+import { captureInboxMode, codeFilesMode, codeIndexMode, codeQuerySql, codeSearchSymbol, codeStatusMode, command, glossaryMode, lintMode, migrateMode, noGitConfigMode, pruneCheckMode, queryTerm, refreshIndexMode, reviewMigrationMode } from "./args";
 import { hookScript, gitPrepareCommitMsgHook, gitWikiCommitTrailersScript, upsertClaudeHookConfig, upsertGitHooksPath, upsertHookConfig } from "./hooks";
 import { runInstallSkillMode } from "./install-skill";
 import { appendCaptureInbox, buildRefreshIndexBlock, runLintMode, runPruneCheckMode, runQueryMode } from "./modes";
@@ -10,11 +10,43 @@ import type { MigrationState, ResultRow } from "./types";
 import { deleteIfGenerated, makeExecutable, mkdirp, upsertMarkedSection, writeManaged, writeStarter } from "./workspace";
 import { withPreservedMarkedSections } from "./wiki-files";
 
+type CodeIndexModule = typeof import("./code-index");
+
+function codeIndex(): CodeIndexModule {
+  return require("./code-index") as CodeIndexModule;
+}
+
 if (command === "install-skill") {
   runInstallSkillMode();
   process.exit(0);
 }
 
+const activeCodeModes = [Boolean(codeQuerySql), codeStatusMode, codeFilesMode, Boolean(codeSearchSymbol), codeIndexMode].filter(Boolean).length;
+if (activeCodeModes > 1) {
+  console.error("Use one code evidence mode at a time: --code-index, --code-query, --code-status, --code-files, or --code-search-symbol.");
+  process.exit(1);
+}
+
+if (codeQuerySql) {
+  codeIndex().runCodeQueryMode();
+  process.exit(0);
+}
+if (codeStatusMode) {
+  codeIndex().runCodeStatusMode();
+  process.exit(0);
+}
+if (codeFilesMode) {
+  codeIndex().runCodeFilesMode();
+  process.exit(0);
+}
+if (codeSearchSymbol) {
+  codeIndex().runCodeSearchSymbolMode();
+  process.exit(0);
+}
+if (codeIndexMode) {
+  codeIndex().runCodeIndexMode();
+  process.exit(0);
+}
 if (queryTerm) {
   runQueryMode();
   process.exit(0);

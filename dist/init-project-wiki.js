@@ -9,8 +9,36 @@ const migration_1 = require("./migration");
 const templates_1 = require("./templates");
 const workspace_1 = require("./workspace");
 const wiki_files_1 = require("./wiki-files");
+function codeIndex() {
+    return require("./code-index");
+}
 if (args_1.command === "install-skill") {
     (0, install_skill_1.runInstallSkillMode)();
+    process.exit(0);
+}
+const activeCodeModes = [Boolean(args_1.codeQuerySql), args_1.codeStatusMode, args_1.codeFilesMode, Boolean(args_1.codeSearchSymbol), args_1.codeIndexMode].filter(Boolean).length;
+if (activeCodeModes > 1) {
+    console.error("Use one code evidence mode at a time: --code-index, --code-query, --code-status, --code-files, or --code-search-symbol.");
+    process.exit(1);
+}
+if (args_1.codeQuerySql) {
+    codeIndex().runCodeQueryMode();
+    process.exit(0);
+}
+if (args_1.codeStatusMode) {
+    codeIndex().runCodeStatusMode();
+    process.exit(0);
+}
+if (args_1.codeFilesMode) {
+    codeIndex().runCodeFilesMode();
+    process.exit(0);
+}
+if (args_1.codeSearchSymbol) {
+    codeIndex().runCodeSearchSymbolMode();
+    process.exit(0);
+}
+if (args_1.codeIndexMode) {
+    codeIndex().runCodeIndexMode();
     process.exit(0);
 }
 if (args_1.queryTerm) {
