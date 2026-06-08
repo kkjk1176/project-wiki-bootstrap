@@ -62,6 +62,12 @@ Map lifecycle requests to these internal operations:
 - Draft a GitHub issue body for a skill problem or side effect: `npx project-wiki-bootstrap --issue-draft --issue-title "Issue title"`.
 - Review migrated inbox state: `npx project-wiki-bootstrap --review-migration`.
 
+Skill problem reporting contract:
+
+- If you discover a project-wiki-bootstrap bug, regression, confusing generated behavior, unintended side effect, or mismatch between this skill's promised workflow and the implementation while using this skill, run `npx project-wiki-bootstrap --issue-draft --issue-title "..."` before the final response unless the user explicitly asked not to generate a draft.
+- Run the issue draft even when you can also fix the problem locally. The draft is read-only and preserves the problem report; it does not replace the code/wiki fix.
+- Choose a concise issue title that names the observed problem, not the fix. Summarize the generated draft path or key output in the final response.
+
 2. Verify:
 
 ```bash

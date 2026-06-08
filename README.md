@@ -112,6 +112,8 @@ npx project-wiki-bootstrap --issue-draft --issue-title "Report unexpected wiki h
 
 The command is read-only. It prints a Markdown problem-report template with reproduction steps, expected vs actual behavior, side effects, affected generated files, environment context, and diagnostics to attach. It does not create a GitHub issue or require network access.
 
+When an LLM using this skill discovers a project-wiki-bootstrap bug, regression, workflow mismatch, confusing generated behavior, or unintended side effect, the LLM runs the read-only issue draft before finishing the work unless the user explicitly says they do not want an issue draft. This does not replace fixing the local problem.
+
 ## What Gets Installed
 
 Project instruction files:

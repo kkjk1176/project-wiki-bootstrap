@@ -104,6 +104,8 @@ Claude Code では `/project-wiki-bootstrap` も使えます。
 
 問題や副作用の GitHub issue body ドラフトを作るには `npx project-wiki-bootstrap --issue-draft --issue-title "Report unexpected wiki hook behavior"` を使います。このコマンドは read-only で、再現手順、期待動作と実際の動作、影響を受けた生成ファイル、環境情報、添付すべき diagnostics のテンプレートを出力します。GitHub issue は作成せず network access も不要です。
 
+この skill を使う LLM が project-wiki-bootstrap の bug、regression、workflow mismatch、紛らわしい生成挙動、意図しない side effect を見つけた場合、ユーザーが issue draft を不要だと明示していない限り、LLM は作業を終える前に read-only issue draft を実行します。これはローカル修正の代替ではありません。
+
 ## インストールされるファイル
 
 プロジェクト指示ファイル:

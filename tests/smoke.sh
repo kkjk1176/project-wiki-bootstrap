@@ -44,6 +44,8 @@ fi
 grep -q "missing value for option: --code-query" missing-code-query.log
 test ! -e AGENTS.md
 grep -q -- "--issue-draft" help.log
+grep -q "Skill problem reporting contract" "$ROOT/SKILL.md"
+grep -q "run \`npx project-wiki-bootstrap --issue-draft --issue-title" "$ROOT/SKILL.md"
 
 cd "$TMPDIR"
 node "$CLI"

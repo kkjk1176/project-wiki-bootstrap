@@ -104,6 +104,8 @@ Review the migrated wiki inbox.
 
 如需为问题或副作用生成 GitHub issue body 草稿，可运行 `npx project-wiki-bootstrap --issue-draft --issue-title "Report unexpected wiki hook behavior"`。该命令是 read-only，会输出包含复现步骤、期望行为与实际行为、受影响生成文件、环境信息和应附加 diagnostics 的模板；不会创建 GitHub issue，也不需要 network access。
 
+当使用此 skill 的 LLM 发现 project-wiki-bootstrap 的 bug、regression、workflow mismatch、令人困惑的生成行为或意外 side effect 时，除非用户明确表示不需要 issue draft，否则 LLM 会在完成工作前运行 read-only issue draft。这一步不会替代本地修复。
+
 ## 安装的文件
 
 项目指令文件:

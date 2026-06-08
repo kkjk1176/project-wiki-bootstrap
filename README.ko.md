@@ -112,6 +112,8 @@ npx project-wiki-bootstrap --issue-draft --issue-title "Report unexpected wiki h
 
 이 명령은 read-only입니다. 재현 단계, 기대 동작과 실제 동작, 부작용, 영향을 받은 생성 파일, 환경 정보, 첨부할 diagnostics를 포함한 Markdown 문제 보고 템플릿을 출력합니다. GitHub issue를 직접 생성하지 않으며 network access도 필요하지 않습니다.
 
+이 스킬을 사용하는 LLM이 project-wiki-bootstrap의 버그, 회귀, 워크플로 불일치, 헷갈리는 생성 동작, 의도하지 않은 부작용을 발견하면, 사용자가 issue draft 생성을 원하지 않는다고 명시하지 않은 한 LLM은 작업을 마무리하기 전에 read-only issue draft를 실행합니다. 이 단계는 로컬 문제 수정을 대체하지 않습니다.
+
 ## 설치되는 파일
 
 프로젝트 지시 파일:
