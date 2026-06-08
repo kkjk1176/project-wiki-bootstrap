@@ -24,6 +24,7 @@ Project Wiki Bootstrap은 코딩 에이전트가 예측 가능하게 읽을 수 
 - Codex와 Claude Code용 wiki-first 프로젝트 지시문
 - compact 시작 컨텍스트만 로드하는 session-start hook
 - 현재 프로젝트 사실, 가정, 리스크, 결정, source를 담는 canonical 문서
+- 깨진 링크, 중복 route, orphan page, stale signal, 품질 gap을 찾는 wiki diagnostics
 - 기존 markdown 문서를 옮기기 위한 migration 지원
 - 큰 저장소에서 코드 근거 기반 wiki 갱신을 돕는 선택적 code evidence index
 
@@ -55,6 +56,8 @@ npx project-wiki-bootstrap
 | --- | --- |
 | wiki 생성 또는 갱신 | `npx project-wiki-bootstrap` |
 | 기존 docs/wiki 마이그레이션 | `npx project-wiki-bootstrap --migrate` |
+| 링크와 문서 품질 점검 | `npx project-wiki-bootstrap --doctor` |
+| 안전한 routing 갱신 후 점검 | `npx project-wiki-bootstrap --doctor --fix` |
 | git 설정 변경 없이 hook 파일만 설치 | `npx project-wiki-bootstrap --no-git-config` |
 | 한 에이전트에만 설치 | `npx project-wiki-bootstrap install-skill --agents codex` 또는 `--agents claude` |
 
@@ -63,6 +66,7 @@ npx project-wiki-bootstrap
 설치 후 Codex 또는 Claude Code에 다음 작업을 요청할 수 있습니다.
 
 - 프로젝트 wiki 생성, 갱신, 검증
+- wiki 링크, 중복 route, orphan page, 문서 품질 점검
 - wiki 문서 검색
 - `wiki/index.md` 갱신
 - 후보 메모를 `wiki/inbox/project-candidates.md`에 저장
@@ -82,6 +86,20 @@ Review the migrated wiki inbox.
 ```
 
 Claude Code에서는 `/project-wiki-bootstrap`도 사용할 수 있습니다.
+
+## Wiki Diagnostics
+
+이미 생성된 wiki를 검토하거나 정리할 때 사용합니다.
+
+| 목적 | 명령 |
+| --- | --- |
+| 생성된 setup 검증 | `npx project-wiki-bootstrap --lint` |
+| 깨진 링크, 중복 index route, orphan page 점검 | `npx project-wiki-bootstrap --link-check` |
+| stale page, unresolved signal, TL;DR 누락, budget drift, evidence gap 점검 | `npx project-wiki-bootstrap --quality-check` |
+| setup, link, quality 점검 통합 실행 | `npx project-wiki-bootstrap --doctor` |
+| 안전한 routing fix 후 진단 실행 | `npx project-wiki-bootstrap --doctor --fix` |
+
+깨진 링크는 실패로 처리합니다. 중복 route, orphan page, 품질 항목은 사람이 병합, routing, 갱신, 재작성 여부를 판단할 수 있도록 warning으로 보고합니다.
 
 ## 설치되는 파일
 

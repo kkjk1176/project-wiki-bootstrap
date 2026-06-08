@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.captureCategory = exports.captureContent = exports.captureTitle = exports.codeIndexScopes = exports.codeIndexOutput = exports.codeSearchSymbol = exports.codeQuerySql = exports.queryTerm = exports.codeFilesMode = exports.codeStatusMode = exports.codeIndexMode = exports.noGitConfigMode = exports.reviewMigrationMode = exports.pruneCheckMode = exports.captureInboxMode = exports.refreshIndexMode = exports.glossaryMode = exports.lintMode = exports.migrateMode = exports.unknownOptions = exports.args = exports.commandArgs = exports.command = exports.unknownCommand = exports.helpMode = exports.rawArgs = void 0;
+exports.captureCategory = exports.captureContent = exports.captureTitle = exports.codeIndexScopes = exports.codeIndexOutput = exports.codeSearchSymbol = exports.codeQuerySql = exports.queryTerm = exports.codeFilesMode = exports.codeStatusMode = exports.codeIndexMode = exports.noGitConfigMode = exports.reviewMigrationMode = exports.pruneCheckMode = exports.captureInboxMode = exports.refreshIndexMode = exports.glossaryMode = exports.fixMode = exports.doctorMode = exports.qualityCheckMode = exports.linkCheckMode = exports.lintMode = exports.migrateMode = exports.unknownOptions = exports.args = exports.commandArgs = exports.command = exports.unknownCommand = exports.helpMode = exports.rawArgs = void 0;
 exports.argValue = argValue;
 exports.argValues = argValues;
 exports.rawArgs = process.argv.slice(2);
@@ -21,10 +21,14 @@ const flagsWithoutValues = new Set([
     "--code-status",
     "--dry-run",
     "--glossary-init",
+    "--doctor",
+    "--fix",
+    "--link-check",
     "--lint",
     "--migrate",
     "--no-git-config",
     "--prune-check",
+    "--quality-check",
     "--refresh-index",
     "--review-migration",
     "--semantic-migrate",
@@ -55,6 +59,10 @@ exports.unknownOptions = Array.from(new Set(exports.commandArgs
     .filter((arg) => !knownFlags.has(arg))));
 exports.migrateMode = exports.args.has("--migrate") || exports.args.has("--adopt-existing");
 exports.lintMode = exports.args.has("--lint");
+exports.linkCheckMode = exports.args.has("--link-check");
+exports.qualityCheckMode = exports.args.has("--quality-check");
+exports.doctorMode = exports.args.has("--doctor");
+exports.fixMode = exports.args.has("--fix");
 exports.glossaryMode = exports.args.has("--glossary-init");
 exports.refreshIndexMode = exports.args.has("--refresh-index");
 exports.captureInboxMode = exports.args.has("--capture-inbox");

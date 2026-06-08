@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-import { captureInboxMode, codeFilesMode, codeIndexMode, codeQuerySql, codeSearchSymbol, codeStatusMode, command, glossaryMode, helpMode, lintMode, migrateMode, noGitConfigMode, pruneCheckMode, queryTerm, refreshIndexMode, reviewMigrationMode, unknownCommand, unknownOptions } from "./args";
+import { captureInboxMode, codeFilesMode, codeIndexMode, codeQuerySql, codeSearchSymbol, codeStatusMode, command, doctorMode, fixMode, glossaryMode, helpMode, linkCheckMode, lintMode, migrateMode, noGitConfigMode, pruneCheckMode, qualityCheckMode, queryTerm, refreshIndexMode, reviewMigrationMode, unknownCommand, unknownOptions } from "./args";
 import { hookScript, gitPrepareCommitMsgHook, gitWikiCommitTrailersScript, upsertClaudeHookConfig, upsertGitHooksPath, upsertHookConfig } from "./hooks";
 import { runInstallSkillMode } from "./install-skill";
-import { appendCaptureInbox, buildRefreshIndexBlock, runLintMode, runPruneCheckMode, runQueryMode } from "./modes";
+import { appendCaptureInbox, buildRefreshIndexBlock, runDoctorMode, runLinkCheckMode, runLintMode, runPruneCheckMode, runQualityCheckMode, runQueryMode } from "./modes";
 import { prepareMigrationMode, runMigrationMode, runReviewMigrationMode } from "./migration";
 import { agentsSection, claudeSection, decisionPolicy, glossary, glossaryIndexBlock, inboxIndexBlock, index, starterFiles, startup, wikiAgentsSection, wikiOperatingModel } from "./templates";
 import type { MigrationState, ResultRow } from "./types";
@@ -24,6 +24,10 @@ function printUsage(): void {
 Options:
   --migrate, --adopt-existing      Preserve an existing wiki as wiki_legacy and create migration inboxes.
   --lint                           Validate the generated project wiki setup without editing files.
+  --link-check                     Report broken wiki links, duplicate routes, and orphan pages.
+  --quality-check                  Report stale, conflicting, and low-quality wiki document signals.
+  --doctor                         Run lint, link-check, and quality-check together.
+  --fix                            With --doctor, safely refresh generated index routing.
   --query <terms>                  Search wiki paths, metadata, titles, and bodies.
   --refresh-index                  Update the managed auto-discovered wiki index block.
   --capture-inbox                  Append a candidate note with --title, --content, and optional --category.
@@ -52,6 +56,11 @@ if (unknownCommand) {
 if (unknownOptions.length > 0) {
   console.error(`unknown option${unknownOptions.length === 1 ? "" : "s"}: ${unknownOptions.join(", ")}`);
   printUsage();
+  process.exit(1);
+}
+
+if (fixMode && !doctorMode) {
+  console.error("--fix is only supported with --doctor.");
   process.exit(1);
 }
 
@@ -96,6 +105,18 @@ if (pruneCheckMode) {
 }
 if (reviewMigrationMode) {
   runReviewMigrationMode();
+  process.exit(0);
+}
+if (doctorMode) {
+  runDoctorMode(fixMode);
+  process.exit(0);
+}
+if (linkCheckMode) {
+  runLinkCheckMode();
+  process.exit(0);
+}
+if (qualityCheckMode) {
+  runQualityCheckMode();
   process.exit(0);
 }
 if (lintMode) {

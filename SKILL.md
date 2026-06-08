@@ -15,6 +15,7 @@ Supported actions:
 
 - Bootstrap or update the project wiki and generated agent/hook files.
 - Validate the wiki setup.
+- Diagnose wiki links, duplicate routes, orphan pages, and document quality gaps.
 - Search project wiki content.
 - Refresh the wiki index.
 - Capture a candidate note into the wiki inbox.
@@ -49,6 +50,10 @@ npx project-wiki-bootstrap --glossary-init
 Map lifecycle requests to these internal operations:
 
 - Validate/check the wiki: `npx project-wiki-bootstrap --lint`.
+- Check wiki links and routing: `npx project-wiki-bootstrap --link-check`.
+- Check document quality signals: `npx project-wiki-bootstrap --quality-check`.
+- Run all wiki diagnostics: `npx project-wiki-bootstrap --doctor`.
+- Safely refresh generated routing before diagnostics: `npx project-wiki-bootstrap --doctor --fix`.
 - Search the wiki: `npx project-wiki-bootstrap --query "search terms"`.
 - Refresh wiki routing/index: `npx project-wiki-bootstrap --refresh-index`.
 - Capture a project candidate: `npx project-wiki-bootstrap --capture-inbox --title "Candidate title" --content "Candidate content"`.
@@ -61,6 +66,7 @@ Map lifecycle requests to these internal operations:
 node .codex/hooks/wiki-session-start.js
 node .claude/hooks/wiki-session-start.js
 npx project-wiki-bootstrap --lint
+npx project-wiki-bootstrap --doctor
 node -e 'JSON.parse(require("fs").readFileSync(".codex/hooks.json","utf8")); JSON.parse(require("fs").readFileSync(".claude/settings.json","utf8")); console.log("project wiki bootstrap ok")'
 ```
 
@@ -82,7 +88,7 @@ Use `--lint` for read-only validation:
 npx project-wiki-bootstrap --lint
 ```
 
-Use `--query` and `--prune-check` for read-only inspection. Use `--refresh-index`, `--capture-inbox`, `--glossary-init`, and `--migrate` only when updating wiki files is intended.
+Use `--query`, `--prune-check`, `--link-check`, `--quality-check`, and `--doctor` for read-only inspection. Use `--doctor --fix` when safe generated routing refresh is intended. Use `--refresh-index`, `--capture-inbox`, `--glossary-init`, and `--migrate` only when updating wiki files is intended.
 
 Use `--review-migration` or `--semantic-migrate` after migration inbox rows are processed. It syncs inbox statuses into `wiki/migration/review.md` and `wiki/migration/verification.md`.
 

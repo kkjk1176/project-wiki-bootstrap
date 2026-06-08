@@ -24,6 +24,7 @@ Core features:
 - Wiki-first project instructions for Codex and Claude Code
 - Session-start hooks that load only compact startup context
 - Canonical pages for current project facts, assumptions, risks, decisions, and sources
+- Wiki diagnostics for broken links, duplicate routes, orphan pages, stale signals, and quality gaps
 - Migration support for existing markdown docs
 - Optional code evidence index for code-backed wiki updates in larger repositories
 
@@ -55,6 +56,8 @@ Common commands:
 | --- | --- |
 | Create or update the wiki | `npx project-wiki-bootstrap` |
 | Migrate existing docs/wiki content | `npx project-wiki-bootstrap --migrate` |
+| Check links and document quality | `npx project-wiki-bootstrap --doctor` |
+| Safely refresh generated routing while checking | `npx project-wiki-bootstrap --doctor --fix` |
 | Install hook files without changing git config | `npx project-wiki-bootstrap --no-git-config` |
 | Install for only one agent | `npx project-wiki-bootstrap install-skill --agents codex` or `--agents claude` |
 
@@ -63,6 +66,7 @@ Common commands:
 After installation, ask Codex or Claude Code to:
 
 - bootstrap, update, or validate the project wiki
+- check wiki links, duplicate routes, orphan pages, and document quality
 - search wiki pages
 - refresh `wiki/index.md`
 - capture a candidate note into `wiki/inbox/project-candidates.md`
@@ -82,6 +86,20 @@ Review the migrated wiki inbox.
 ```
 
 In Claude Code, you can also invoke `/project-wiki-bootstrap`.
+
+## Wiki Diagnostics
+
+Use diagnostics when the wiki exists but needs review or cleanup:
+
+| Purpose | Command |
+| --- | --- |
+| Validate generated setup | `npx project-wiki-bootstrap --lint` |
+| Check broken links, duplicate index routes, and orphan pages | `npx project-wiki-bootstrap --link-check` |
+| Check stale pages, unresolved signals, missing TL;DRs, budget drift, and evidence gaps | `npx project-wiki-bootstrap --quality-check` |
+| Run setup, link, and quality checks together | `npx project-wiki-bootstrap --doctor` |
+| Apply safe routing fixes before diagnostics | `npx project-wiki-bootstrap --doctor --fix` |
+
+Broken links fail the check. Duplicate routes, orphan pages, and quality findings are reported as actionable warnings so humans or agents can decide whether to merge, route, refresh, or rewrite documents.
 
 ## What Gets Installed
 

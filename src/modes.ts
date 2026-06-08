@@ -1,10 +1,10 @@
 import * as fs from "node:fs";
 import * as childProcess from "node:child_process";
 import { captureCategory, captureContent, captureTitle, noGitConfigMode, queryTerm } from "./args";
-import type { FileStatus, HookConfig, PruneCandidate, QueryResult } from "./types";
-import { abs, exists, hasMetadataHeader, isGitRepository, metadataValue, mkdirp, parseJson, read, root, stripMetadataHeader, today, walkFilesUnder, write } from "./workspace";
+import type { FileStatus, HookConfig, PruneCandidate, QueryResult, WikiDiagnostic, WikiLinkReference } from "./types";
+import { abs, exists, hasMetadataHeader, isGitRepository, metadataValue, mkdirp, parseJson, read, root, stripMetadataHeader, today, upsertMarkedSection, walkFilesUnder, write } from "./workspace";
 import { metadata } from "./templates";
-import { canonicalBodyForLint, hasGlossaryNeedSignal, hasGlossaryTable, metadataSummary, stripMarkedSection, wikiLinkForFile, wikiMarkdownFiles, wikiTitleForFile } from "./wiki-files";
+import { canonicalBodyForLint, extractWikiLinks, hasGlossaryNeedSignal, hasGlossaryTable, metadataSummary, stripMarkedSection, wikiLinkForFile, wikiMarkdownFiles, wikiTitleForFile } from "./wiki-files";
 
 export function buildRefreshIndexBlock(): string {
   const indexText = exists("wiki/index.md") ? read("wiki/index.md") : "";
@@ -98,6 +98,145 @@ export function runPruneCheckMode(): void {
     console.log(`${item.file}  status=${item.status || "-"}  updated=${item.updated || "-"}`);
     for (const reason of item.reasons) console.log(`  - ${reason}`);
   }
+}
+
+function printDiagnostics(title: string, diagnostics: WikiDiagnostic[], checked: number): boolean {
+  console.log(title);
+  for (const item of diagnostics) {
+    console.log(`${item.severity} ${item.code} ${item.file} ${item.message}`);
+  }
+  const errors = diagnostics.filter((item) => item.severity === "error").length;
+  const warnings = diagnostics.length - errors;
+  if (errors > 0) {
+    console.log(`failed: ${errors} errors, ${warnings} warnings, ${checked} wiki markdown files checked`);
+    return false;
+  }
+  console.log(`passed: ${checked} wiki markdown files checked, ${warnings} warnings`);
+  return true;
+}
+
+function collectWikiLinkReferences(files: string[]): WikiLinkReference[] {
+  return files.flatMap((file) => extractWikiLinks(file, read(file)));
+}
+
+export function collectLinkDiagnostics(): WikiDiagnostic[] {
+  const diagnostics: WikiDiagnostic[] = [];
+  const files = wikiMarkdownFiles();
+  const fileSet = new Set(files);
+  const links = collectWikiLinkReferences(files);
+  for (const link of links) {
+    if (!fileSet.has(link.normalizedTarget)) {
+      diagnostics.push({
+        code: "broken-link",
+        severity: "error",
+        file: link.file,
+        message: `${link.kind} ${link.target} resolves to missing ${link.normalizedTarget}`,
+      });
+    }
+  }
+  if (exists("wiki/index.md")) {
+    const indexLinks = extractWikiLinks("wiki/index.md", read("wiki/index.md"));
+    const indexTargets = new Map<string, number>();
+    for (const link of indexLinks) indexTargets.set(link.normalizedTarget, (indexTargets.get(link.normalizedTarget) ?? 0) + 1);
+    for (const [target, count] of indexTargets) {
+      if (count > 1) {
+        diagnostics.push({
+          code: "duplicate-route",
+          severity: "warn",
+          file: "wiki/index.md",
+          message: `${count} index routes resolve to ${target}`,
+        });
+      }
+    }
+  }
+  const incoming = new Map<string, number>();
+  for (const link of links) incoming.set(link.normalizedTarget, (incoming.get(link.normalizedTarget) ?? 0) + 1);
+  const orphanExemptions = new Set(["wiki/index.md", "wiki/startup.md", "wiki/README.md"]);
+  for (const file of files) {
+    if (orphanExemptions.has(file)) continue;
+    if ((incoming.get(file) ?? 0) === 0) {
+      diagnostics.push({
+        code: "orphan-page",
+        severity: "warn",
+        file,
+        message: "no incoming wiki links; route it from wiki/index.md or remove/merge it",
+      });
+    }
+  }
+  return diagnostics.sort((a, b) => a.severity.localeCompare(b.severity) || a.file.localeCompare(b.file) || a.code.localeCompare(b.code));
+}
+
+export function collectQualityDiagnostics(): WikiDiagnostic[] {
+  const diagnostics: WikiDiagnostic[] = [];
+  const files = wikiMarkdownFiles();
+  const titles = new Map<string, string[]>();
+  for (const file of files) {
+    const text = read(file);
+    const body = stripMetadataHeader(text);
+    const title = wikiTitleForFile(file, text).toLowerCase();
+    titles.set(title, [...(titles.get(title) ?? []), file]);
+    const status = metadataValue(text, "status");
+    const updated = metadataValue(text, "updated");
+    const scope = metadataValue(text, "scope");
+    const budget = metadataValue(text, "read_budget");
+    const tldrExpected = !/startup-router|wiki-router|wiki-entry|project-decision-template/.test(scope);
+    if (tldrExpected && !/##\s+TL;DR/.test(body)) {
+      diagnostics.push({ code: "missing-tldr", severity: "warn", file, message: "add a compact TL;DR near the top" });
+    }
+    if (status === "active" && updated && updated < today && /project-canonical|project-decisions|source-summary|wiki-meta/.test(scope)) {
+      diagnostics.push({ code: "stale-review", severity: "warn", file, message: `updated before today: ${updated}` });
+    }
+    if (status === "active" && !/inbox|migration-inbox/.test(scope) && /proposed|undecided|TODO|TBD|미정/i.test(body)) {
+      diagnostics.push({ code: "unresolved-signal", severity: "warn", file, message: "contains pending/proposed/undecided language" });
+    }
+    const shortLimit = file === "wiki/index.md" ? 4500 : 3500;
+    if (budget === "short" && text.length > shortLimit) {
+      diagnostics.push({ code: "budget-drift", severity: "warn", file, message: `${text.length}/${shortLimit} chars for short read_budget` });
+    } else if (budget === "medium" && text.length > 8000) {
+      diagnostics.push({ code: "budget-drift", severity: "warn", file, message: `${text.length}/8000 chars for medium read_budget` });
+    }
+    if (file.startsWith("wiki/canonical/") && /Code-proven behavior:/i.test(body) && !/evidence:\s*`?[\w./-]+/i.test(body)) {
+      diagnostics.push({ code: "missing-evidence", severity: "warn", file, message: "code-proven canonical claims should cite concrete evidence paths" });
+    }
+    if (scope === "source-summary" && !/https?:\/\//.test(body)) {
+      diagnostics.push({ code: "missing-source-link", severity: "warn", file, message: "source summaries should retain at least one source URL" });
+    }
+  }
+  for (const [title, titleFiles] of titles) {
+    if (titleFiles.length > 1) {
+      for (const file of titleFiles) {
+        diagnostics.push({ code: "duplicate-title", severity: "warn", file, message: `title also appears in ${titleFiles.filter((item) => item !== file).join(", ")}` });
+      }
+    }
+  }
+  return diagnostics.sort((a, b) => a.file.localeCompare(b.file) || a.code.localeCompare(b.code));
+}
+
+export function runLinkCheckMode(): void {
+  const ok = printDiagnostics("Project wiki link-check", collectLinkDiagnostics(), wikiMarkdownFiles().length);
+  if (!ok) process.exit(1);
+}
+
+export function runQualityCheckMode(): void {
+  const ok = printDiagnostics("Project wiki quality-check", collectQualityDiagnostics(), wikiMarkdownFiles().length);
+  if (!ok) process.exit(1);
+}
+
+export function runDoctorMode(fix: boolean): void {
+  if (fix) {
+    console.log("Project wiki doctor --fix");
+    if (exists("wiki/index.md")) {
+      upsertMarkedSection("wiki/index.md", "<!-- PROJECT-WIKI-AUTO-INDEX:START -->", "<!-- PROJECT-WIKI-AUTO-INDEX:END -->", buildRefreshIndexBlock());
+      console.log("updated wiki/index.md auto-discovered pages");
+    } else {
+      console.log("skipped wiki/index.md auto-discovered pages: missing wiki/index.md");
+    }
+  }
+  const files = wikiMarkdownFiles();
+  const linkOk = printDiagnostics("Project wiki link-check", collectLinkDiagnostics(), files.length);
+  const qualityOk = printDiagnostics("Project wiki quality-check", collectQualityDiagnostics(), files.length);
+  runLintMode();
+  if (!linkOk || !qualityOk) process.exit(1);
 }
 
 export function runLintMode(): void {

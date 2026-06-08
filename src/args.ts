@@ -17,10 +17,14 @@ const flagsWithoutValues: Set<string> = new Set([
   "--code-status",
   "--dry-run",
   "--glossary-init",
+  "--doctor",
+  "--fix",
+  "--link-check",
   "--lint",
   "--migrate",
   "--no-git-config",
   "--prune-check",
+  "--quality-check",
   "--refresh-index",
   "--review-migration",
   "--semantic-migrate",
@@ -54,6 +58,10 @@ export const unknownOptions: string[] = Array.from(new Set(commandArgs
 
 export const migrateMode = args.has("--migrate") || args.has("--adopt-existing");
 export const lintMode = args.has("--lint");
+export const linkCheckMode = args.has("--link-check");
+export const qualityCheckMode = args.has("--quality-check");
+export const doctorMode = args.has("--doctor");
+export const fixMode = args.has("--fix");
 export const glossaryMode = args.has("--glossary-init");
 export const refreshIndexMode = args.has("--refresh-index");
 export const captureInboxMode = args.has("--capture-inbox");

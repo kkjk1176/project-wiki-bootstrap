@@ -71,6 +71,72 @@ node "$CLI" --query Smoke
 node "$CLI" --prune-check
 node "$CLI" --lint
 
+mkdir "$TMPDIR/wiki-diagnostics"
+cd "$TMPDIR/wiki-diagnostics"
+node "$CLI"
+node "$CLI" --link-check > link-check-ok.log
+grep -q "Project wiki link-check" link-check-ok.log
+grep -q "passed:" link-check-ok.log
+cat >> wiki/canonical/project-brief.md <<'EOF'
+
+Image asset probe: ![diagram](assets/diagram.png)
+PDF asset probe: [spec](assets/spec.pdf)
+Angle markdown probe: [assumptions](<assumptions.md>)
+Root wiki probe: [startup](/wiki/startup.md)
+EOF
+node "$CLI" --link-check > link-check-assets-ok.log
+grep -q "Project wiki link-check" link-check-assets-ok.log
+grep -q "passed:" link-check-assets-ok.log
+node "$CLI" --quality-check > quality-check.log
+grep -q "Project wiki quality-check" quality-check.log
+node "$CLI" --doctor > doctor.log
+grep -q "Project wiki link-check" doctor.log
+grep -q "Project wiki quality-check" doctor.log
+grep -q "Project wiki lint" doctor.log
+if node "$CLI" --fix > bad-fix.log 2>&1; then
+  echo "expected --fix without --doctor to fail" >&2
+  exit 1
+fi
+grep -q -- "--fix is only supported with --doctor" bad-fix.log
+cat >> wiki/canonical/project-brief.md <<'EOF'
+
+Broken route probe: [[canonical/missing-page]]
+EOF
+if node "$CLI" --link-check > broken-link.log 2>&1; then
+  echo "expected --link-check to fail on broken wiki links" >&2
+  exit 1
+fi
+grep -q "broken-link" broken-link.log
+grep -q "wiki/canonical/missing-page.md" broken-link.log
+
+mkdir "$TMPDIR/wiki-diagnostics-fix"
+cd "$TMPDIR/wiki-diagnostics-fix"
+node "$CLI"
+cat > wiki/canonical/custom-quality.md <<'EOF'
+---
+status: active
+updated: 2026-06-08
+scope: project-canonical
+read_budget: short
+decision_ref: none
+review_trigger: custom quality page changes
+---
+
+# Custom Quality Page
+
+This intentionally lacks a TL;DR for quality-check coverage.
+EOF
+node "$CLI" --doctor --fix > doctor-fix.log
+grep -q "updated wiki/index.md auto-discovered pages" doctor-fix.log
+grep -q "\[\[canonical/custom-quality\]\]" wiki/index.md
+grep -q "missing-tldr" doctor-fix.log
+cat >> wiki/index.md <<'EOF'
+
+Duplicate route probe: [[canonical/custom-quality]]
+EOF
+node "$CLI" --link-check > duplicate-route.log
+grep -q "duplicate-route" duplicate-route.log
+
 mkdir "$TMPDIR/no-git-config"
 cd "$TMPDIR/no-git-config"
 git init >/dev/null

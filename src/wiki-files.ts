@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { MarkdownFileInfo, MetadataSummary } from "./types";
+import type { MarkdownFileInfo, MetadataSummary, WikiLinkReference } from "./types";
 import { abs, exists, metadataValue, normalizePath, read, root, stripMetadataHeader, walkFilesUnder } from "./workspace";
 
 export const standardWikiFiles: Set<string> = new Set([
@@ -100,6 +100,68 @@ export function wikiMarkdownFiles(): string[] {
 
 export function wikiLinkForFile(relativePath: string): string {
   return `[[${relativePath.replace(/^wiki\//, "").replace(/\.(md|mdx)$/i, "")}]]`;
+}
+
+function stripIgnoredMarkdownBlocks(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/`[^`\n]*`/g, "");
+}
+
+export function normalizeWikiLinkTarget(sourceFile: string, rawTarget: string, relativeToSource: boolean = false): string {
+  let target = rawTarget
+    .trim()
+    .split("|", 1)[0] ?? "";
+  target = target.split("#", 1)[0]?.split("?", 1)[0]?.trim() ?? "";
+  if (!target || /^(https?:|mailto:|tel:)/i.test(target)) return "";
+  if (target.startsWith("/wiki/")) {
+    target = target.replace(/^\//, "");
+  } else if (target.startsWith("/")) {
+    return "";
+  }
+  if (target.startsWith("./") || target.startsWith("../") || (relativeToSource && !target.startsWith("wiki/"))) {
+    const sourceDir = path.dirname(sourceFile);
+    target = normalizePath(path.normalize(path.join(sourceDir, target)));
+  } else if (!target.startsWith("wiki/")) {
+    target = `wiki/${target}`;
+  }
+  if (!/\.(md|mdx)$/i.test(target)) target = `${target}.md`;
+  return normalizePath(target);
+}
+
+function markdownLinkTarget(rawTarget: string): string {
+  const trimmed = rawTarget.trim();
+  if (trimmed.startsWith("<")) {
+    const end = trimmed.indexOf(">");
+    return end > 0 ? trimmed.slice(1, end).trim() : "";
+  }
+  return trimmed.split(/\s+/, 1)[0] ?? "";
+}
+
+function isMarkdownDocumentTarget(rawTarget: string): boolean {
+  const target = rawTarget.split("#", 1)[0]?.split("?", 1)[0]?.trim() ?? "";
+  if (!target) return false;
+  const ext = path.extname(target).toLowerCase();
+  return !ext || ext === ".md" || ext === ".mdx";
+}
+
+export function extractWikiLinks(file: string, text: string): WikiLinkReference[] {
+  const body = stripIgnoredMarkdownBlocks(stripMetadataHeader(text));
+  const links: WikiLinkReference[] = [];
+  for (const match of body.matchAll(/\[\[([^\]\n]+)\]\]/g)) {
+    const target = match[1]?.trim() ?? "";
+    const normalizedTarget = normalizeWikiLinkTarget(file, target);
+    if (normalizedTarget) links.push({ file, target, normalizedTarget, kind: "wikilink" });
+  }
+  for (const match of body.matchAll(/\[[^\]\n]*\]\(([^)\n]+)\)/g)) {
+    if (match.index && body[match.index - 1] === "!") continue;
+    const target = markdownLinkTarget(match[1] ?? "");
+    if (!target || /^(https?:|mailto:|tel:|#)/i.test(target)) continue;
+    if (!isMarkdownDocumentTarget(target)) continue;
+    const normalizedTarget = normalizeWikiLinkTarget(file, target, true);
+    if (normalizedTarget.startsWith("wiki/")) links.push({ file, target, normalizedTarget, kind: "markdown" });
+  }
+  return links;
 }
 
 export function wikiTitleForFile(relativePath: string, text: string): string {
