@@ -20,6 +20,10 @@ function printUsage() {
 Options:
   --migrate, --adopt-existing      Preserve an existing wiki as wiki_legacy and create migration inboxes.
   --lint                           Validate the generated project wiki setup without editing files.
+  --link-check                     Report broken wiki links, duplicate routes, and orphan pages.
+  --quality-check                  Report stale, conflicting, and low-quality wiki document signals.
+  --doctor                         Run lint, link-check, and quality-check together.
+  --fix                            With --doctor, safely refresh generated index routing.
   --query <terms>                  Search wiki paths, metadata, titles, and bodies.
   --refresh-index                  Update the managed auto-discovered wiki index block.
   --capture-inbox                  Append a candidate note with --title, --content, and optional --category.
@@ -45,6 +49,10 @@ if (args_1.unknownCommand) {
 if (args_1.unknownOptions.length > 0) {
     console.error(`unknown option${args_1.unknownOptions.length === 1 ? "" : "s"}: ${args_1.unknownOptions.join(", ")}`);
     printUsage();
+    process.exit(1);
+}
+if (args_1.fixMode && !args_1.doctorMode) {
+    console.error("--fix is only supported with --doctor.");
     process.exit(1);
 }
 if (args_1.command === "install-skill") {
@@ -86,6 +94,18 @@ if (args_1.pruneCheckMode) {
 }
 if (args_1.reviewMigrationMode) {
     (0, migration_1.runReviewMigrationMode)();
+    process.exit(0);
+}
+if (args_1.doctorMode) {
+    (0, modes_1.runDoctorMode)(args_1.fixMode);
+    process.exit(0);
+}
+if (args_1.linkCheckMode) {
+    (0, modes_1.runLinkCheckMode)();
+    process.exit(0);
+}
+if (args_1.qualityCheckMode) {
+    (0, modes_1.runQualityCheckMode)();
     process.exit(0);
 }
 if (args_1.lintMode) {

@@ -38,6 +38,11 @@ exports.runQueryMode = runQueryMode;
 exports.projectCandidatesContent = projectCandidatesContent;
 exports.appendCaptureInbox = appendCaptureInbox;
 exports.runPruneCheckMode = runPruneCheckMode;
+exports.collectLinkDiagnostics = collectLinkDiagnostics;
+exports.collectQualityDiagnostics = collectQualityDiagnostics;
+exports.runLinkCheckMode = runLinkCheckMode;
+exports.runQualityCheckMode = runQualityCheckMode;
+exports.runDoctorMode = runDoctorMode;
 exports.runLintMode = runLintMode;
 const fs = __importStar(require("node:fs"));
 const childProcess = __importStar(require("node:child_process"));
@@ -144,6 +149,146 @@ function runPruneCheckMode() {
         for (const reason of item.reasons)
             console.log(`  - ${reason}`);
     }
+}
+function printDiagnostics(title, diagnostics, checked) {
+    console.log(title);
+    for (const item of diagnostics) {
+        console.log(`${item.severity} ${item.code} ${item.file} ${item.message}`);
+    }
+    const errors = diagnostics.filter((item) => item.severity === "error").length;
+    const warnings = diagnostics.length - errors;
+    if (errors > 0) {
+        console.log(`failed: ${errors} errors, ${warnings} warnings, ${checked} wiki markdown files checked`);
+        return false;
+    }
+    console.log(`passed: ${checked} wiki markdown files checked, ${warnings} warnings`);
+    return true;
+}
+function collectWikiLinkReferences(files) {
+    return files.flatMap((file) => (0, wiki_files_1.extractWikiLinks)(file, (0, workspace_1.read)(file)));
+}
+function collectLinkDiagnostics() {
+    const diagnostics = [];
+    const files = (0, wiki_files_1.wikiMarkdownFiles)();
+    const fileSet = new Set(files);
+    const links = collectWikiLinkReferences(files);
+    for (const link of links) {
+        if (!fileSet.has(link.normalizedTarget)) {
+            diagnostics.push({
+                code: "broken-link",
+                severity: "error",
+                file: link.file,
+                message: `${link.kind} ${link.target} resolves to missing ${link.normalizedTarget}`,
+            });
+        }
+    }
+    if ((0, workspace_1.exists)("wiki/index.md")) {
+        const indexLinks = (0, wiki_files_1.extractWikiLinks)("wiki/index.md", (0, workspace_1.read)("wiki/index.md"));
+        const indexTargets = new Map();
+        for (const link of indexLinks)
+            indexTargets.set(link.normalizedTarget, (indexTargets.get(link.normalizedTarget) ?? 0) + 1);
+        for (const [target, count] of indexTargets) {
+            if (count > 1) {
+                diagnostics.push({
+                    code: "duplicate-route",
+                    severity: "warn",
+                    file: "wiki/index.md",
+                    message: `${count} index routes resolve to ${target}`,
+                });
+            }
+        }
+    }
+    const incoming = new Map();
+    for (const link of links)
+        incoming.set(link.normalizedTarget, (incoming.get(link.normalizedTarget) ?? 0) + 1);
+    const orphanExemptions = new Set(["wiki/index.md", "wiki/startup.md", "wiki/README.md"]);
+    for (const file of files) {
+        if (orphanExemptions.has(file))
+            continue;
+        if ((incoming.get(file) ?? 0) === 0) {
+            diagnostics.push({
+                code: "orphan-page",
+                severity: "warn",
+                file,
+                message: "no incoming wiki links; route it from wiki/index.md or remove/merge it",
+            });
+        }
+    }
+    return diagnostics.sort((a, b) => a.severity.localeCompare(b.severity) || a.file.localeCompare(b.file) || a.code.localeCompare(b.code));
+}
+function collectQualityDiagnostics() {
+    const diagnostics = [];
+    const files = (0, wiki_files_1.wikiMarkdownFiles)();
+    const titles = new Map();
+    for (const file of files) {
+        const text = (0, workspace_1.read)(file);
+        const body = (0, workspace_1.stripMetadataHeader)(text);
+        const title = (0, wiki_files_1.wikiTitleForFile)(file, text).toLowerCase();
+        titles.set(title, [...(titles.get(title) ?? []), file]);
+        const status = (0, workspace_1.metadataValue)(text, "status");
+        const updated = (0, workspace_1.metadataValue)(text, "updated");
+        const scope = (0, workspace_1.metadataValue)(text, "scope");
+        const budget = (0, workspace_1.metadataValue)(text, "read_budget");
+        const tldrExpected = !/startup-router|wiki-router|wiki-entry|project-decision-template/.test(scope);
+        if (tldrExpected && !/##\s+TL;DR/.test(body)) {
+            diagnostics.push({ code: "missing-tldr", severity: "warn", file, message: "add a compact TL;DR near the top" });
+        }
+        if (status === "active" && updated && updated < workspace_1.today && /project-canonical|project-decisions|source-summary|wiki-meta/.test(scope)) {
+            diagnostics.push({ code: "stale-review", severity: "warn", file, message: `updated before today: ${updated}` });
+        }
+        if (status === "active" && !/inbox|migration-inbox/.test(scope) && /proposed|undecided|TODO|TBD|미정/i.test(body)) {
+            diagnostics.push({ code: "unresolved-signal", severity: "warn", file, message: "contains pending/proposed/undecided language" });
+        }
+        const shortLimit = file === "wiki/index.md" ? 4500 : 3500;
+        if (budget === "short" && text.length > shortLimit) {
+            diagnostics.push({ code: "budget-drift", severity: "warn", file, message: `${text.length}/${shortLimit} chars for short read_budget` });
+        }
+        else if (budget === "medium" && text.length > 8000) {
+            diagnostics.push({ code: "budget-drift", severity: "warn", file, message: `${text.length}/8000 chars for medium read_budget` });
+        }
+        if (file.startsWith("wiki/canonical/") && /Code-proven behavior:/i.test(body) && !/evidence:\s*`?[\w./-]+/i.test(body)) {
+            diagnostics.push({ code: "missing-evidence", severity: "warn", file, message: "code-proven canonical claims should cite concrete evidence paths" });
+        }
+        if (scope === "source-summary" && !/https?:\/\//.test(body)) {
+            diagnostics.push({ code: "missing-source-link", severity: "warn", file, message: "source summaries should retain at least one source URL" });
+        }
+    }
+    for (const [title, titleFiles] of titles) {
+        if (titleFiles.length > 1) {
+            for (const file of titleFiles) {
+                diagnostics.push({ code: "duplicate-title", severity: "warn", file, message: `title also appears in ${titleFiles.filter((item) => item !== file).join(", ")}` });
+            }
+        }
+    }
+    return diagnostics.sort((a, b) => a.file.localeCompare(b.file) || a.code.localeCompare(b.code));
+}
+function runLinkCheckMode() {
+    const ok = printDiagnostics("Project wiki link-check", collectLinkDiagnostics(), (0, wiki_files_1.wikiMarkdownFiles)().length);
+    if (!ok)
+        process.exit(1);
+}
+function runQualityCheckMode() {
+    const ok = printDiagnostics("Project wiki quality-check", collectQualityDiagnostics(), (0, wiki_files_1.wikiMarkdownFiles)().length);
+    if (!ok)
+        process.exit(1);
+}
+function runDoctorMode(fix) {
+    if (fix) {
+        console.log("Project wiki doctor --fix");
+        if ((0, workspace_1.exists)("wiki/index.md")) {
+            (0, workspace_1.upsertMarkedSection)("wiki/index.md", "<!-- PROJECT-WIKI-AUTO-INDEX:START -->", "<!-- PROJECT-WIKI-AUTO-INDEX:END -->", buildRefreshIndexBlock());
+            console.log("updated wiki/index.md auto-discovered pages");
+        }
+        else {
+            console.log("skipped wiki/index.md auto-discovered pages: missing wiki/index.md");
+        }
+    }
+    const files = (0, wiki_files_1.wikiMarkdownFiles)();
+    const linkOk = printDiagnostics("Project wiki link-check", collectLinkDiagnostics(), files.length);
+    const qualityOk = printDiagnostics("Project wiki quality-check", collectQualityDiagnostics(), files.length);
+    runLintMode();
+    if (!linkOk || !qualityOk)
+        process.exit(1);
 }
 function runLintMode() {
     const errors = [];

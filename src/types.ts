@@ -110,3 +110,19 @@ export interface PruneCandidate {
   updated: string;
   reasons: string[];
 }
+
+export type WikiLinkKind = "wikilink" | "markdown";
+
+export interface WikiLinkReference {
+  file: string;
+  target: string;
+  normalizedTarget: string;
+  kind: WikiLinkKind;
+}
+
+export interface WikiDiagnostic {
+  code: string;
+  severity: "error" | "warn";
+  file: string;
+  message: string;
+}

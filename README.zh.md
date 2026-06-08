@@ -24,6 +24,7 @@ Project Wiki Bootstrap 会创建一个仓库本地的规划记忆，让编码代
 - 面向 Codex 和 Claude Code 的 wiki-first 项目指令
 - 只加载 compact 启动上下文的 session-start hook
 - 记录当前项目事实、假设、风险、决策和 source 的 canonical 文档
+- 用于发现坏链接、重复 route、orphan page、stale signal 和质量 gap 的 wiki diagnostics
 - 用于迁移已有 markdown 文档的 migration support
 - 面向大型仓库、帮助基于代码证据更新 wiki 的可选 code evidence index
 
@@ -55,6 +56,8 @@ npx project-wiki-bootstrap
 | --- | --- |
 | 创建或更新 wiki | `npx project-wiki-bootstrap` |
 | 迁移已有 docs/wiki 内容 | `npx project-wiki-bootstrap --migrate` |
+| 检查链接和文档质量 | `npx project-wiki-bootstrap --doctor` |
+| 先安全刷新 routing 再检查 | `npx project-wiki-bootstrap --doctor --fix` |
 | 不修改 git 配置，只安装 hook 文件 | `npx project-wiki-bootstrap --no-git-config` |
 | 只为一个代理安装 | `npx project-wiki-bootstrap install-skill --agents codex` 或 `--agents claude` |
 
@@ -63,6 +66,7 @@ npx project-wiki-bootstrap
 安装后，可以让 Codex 或 Claude Code 执行以下任务。
 
 - 创建、更新或验证项目 wiki
+- 检查 wiki 链接、重复 route、orphan page 和文档质量
 - 搜索 wiki 页面
 - 刷新 `wiki/index.md`
 - 将候选备注保存到 `wiki/inbox/project-candidates.md`
@@ -82,6 +86,20 @@ Review the migrated wiki inbox.
 ```
 
 在 Claude Code 中也可以使用 `/project-wiki-bootstrap`。
+
+## Wiki Diagnostics
+
+用于 review 或整理已有 wiki。
+
+| 目的 | 命令 |
+| --- | --- |
+| 验证生成的 setup | `npx project-wiki-bootstrap --lint` |
+| 检查坏链接、重复 index route 和 orphan page | `npx project-wiki-bootstrap --link-check` |
+| 检查 stale page、unresolved signal、缺少 TL;DR、budget drift 和 evidence gap | `npx project-wiki-bootstrap --quality-check` |
+| 一起运行 setup、link 和 quality 检查 | `npx project-wiki-bootstrap --doctor` |
+| 先应用安全的 routing fix 再诊断 | `npx project-wiki-bootstrap --doctor --fix` |
+
+坏链接会导致检查失败。重复 route、orphan page 和质量问题会作为 warning 报告，便于判断是否需要合并、routing、刷新或重写文档。
 
 ## 安装的文件
 
