@@ -5,3 +5,9 @@ coverage/
 tmp/
 *.log
 CLAUDE.local.md
+.claude/
+.codex/
+wiki/
+AGENTS.md
+CLAUDE.md
+.githooks/
