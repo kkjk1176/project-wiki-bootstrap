@@ -348,6 +348,59 @@ node "$CLI" --review-migration > review-migration-pipe.log
 grep -q "semantic migration complete: yes" wiki/migration/verification.md
 grep -q 'spec\\|decision.md' wiki/migration/review.md
 
+mkdir "$TMPDIR/migration-copy-risk"
+cd "$TMPDIR/migration-copy-risk"
+mkdir -p wiki/canonical
+cat > wiki/canonical/product-plan.md <<'EOF'
+---
+status: active
+updated: 2026-06-01
+scope: project-canonical
+read_budget: medium
+decision_ref: none
+review_trigger: legacy product plan changes
+---
+
+# Product Plan
+
+## TL;DR
+
+- This is legacy project truth from a different project.
+- It intentionally contains enough repeated content to make a direct copy detectable.
+
+## Details
+
+Legacy Project Alpha serves billing administrators who reconcile imported invoices, approve payouts, and export financial reports. Its success criteria, domain terms, workflows, and release constraints belong to that old project. A migration reviewer must rewrite useful meaning for the current project instead of copying this file into the new canonical wiki. The copied text includes specific roles, workflow names, old product promises, and old operational constraints so direct file reuse is unsafe.
+EOF
+node "$CLI" --migrate > migration-copy-bootstrap.log
+cat > wiki/canonical/product-plan.md <<'EOF'
+---
+status: active
+updated: 2026-06-09
+scope: project-canonical
+read_budget: medium
+decision_ref: none
+review_trigger: migrated product plan changes
+---
+
+# Product Plan
+
+## TL;DR
+
+- This is legacy project truth from a different project.
+- It intentionally contains enough repeated content to make a direct copy detectable.
+
+## Details
+
+Legacy Project Alpha serves billing administrators who reconcile imported invoices, approve payouts, and export financial reports. Its success criteria, domain terms, workflows, and release constraints belong to that old project. A migration reviewer must rewrite useful meaning for the current project instead of copying this file into the new canonical wiki. The copied text includes specific roles, workflow names, old product promises, and old operational constraints so direct file reuse is unsafe.
+EOF
+if node "$CLI" --quality-check > migration-copy-risk.log 2>&1; then
+  echo "expected --quality-check to fail on copied legacy wiki content" >&2
+  exit 1
+fi
+grep -q "migration-copy-risk" migration-copy-risk.log
+grep -q "wiki_legacy/canonical/product-plan.md" migration-copy-risk.log
+
 mkdir "$TMPDIR/existing-hooks-path"
 cd "$TMPDIR/existing-hooks-path"
 git init >/dev/null

@@ -310,7 +310,7 @@ Migration mode is a reset-and-rewrite flow:
   - `wiki/sources/migration-inbox.md`
 - Adds migration routing to `wiki/startup.md` and `wiki/index.md`.
 
-After migration mode, inspect inboxes and fold legacy content into canonical docs, Decision Packs, ADRs, source summaries, or meta docs.
+After migration mode, inspect inboxes and fold legacy content into canonical docs, Decision Packs, ADRs, source summaries, or meta docs. Do not copy legacy markdown files directly into `wiki/canonical/`, `wiki/decisions/`, or `wiki/sources/`; rewrite only the useful project meaning, cite current-project evidence when possible, and keep ambiguous material in the migration inbox or mark it `needs-human-review`.
 
 Inbox rows use these statuses:
 
@@ -330,4 +330,6 @@ $PROJECT_WIKI_BOOTSTRAP --review-migration
 
 Human review is not required for every inbox item. LLM may process ordinary rows and close them as adopted/rejected/resolved. Human review is reserved for `needs-human-review`.
 
-Do not delete `wiki_legacy` until migration verification passes and semantic review is complete.
+Run `$PROJECT_WIKI_BOOTSTRAP --doctor` after migration review. `--quality-check` and `--doctor` report `migration-copy-risk` when a new project wiki document appears to be copied from `wiki_legacy*`, and report `migration-filename-reuse` when a legacy filename is reused and needs rewrite verification.
+
+Do not delete `wiki_legacy` until migration verification passes, semantic review is complete, and migration copy diagnostics are clear.

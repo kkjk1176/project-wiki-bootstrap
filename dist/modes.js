@@ -496,6 +496,116 @@ function collectLinkDiagnostics() {
     }
     return diagnostics.sort((a, b) => a.severity.localeCompare(b.severity) || a.file.localeCompare(b.file) || a.code.localeCompare(b.code));
 }
+function legacyWikiRoots() {
+    if (!fs.existsSync(workspace_1.root))
+        return [];
+    return fs.readdirSync(workspace_1.root, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && /^wiki_legacy(?:_|$)/.test(entry.name))
+        .map((entry) => entry.name)
+        .sort();
+}
+function normalizeMigrationCopyText(text) {
+    return (0, workspace_1.stripMetadataHeader)(text)
+        .replace(/<!--[\s\S]*?-->/g, " ")
+        .replace(/\r?\n/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+}
+function migrationCopyTokens(text) {
+    return normalizeMigrationCopyText(text).match(/[\p{L}\p{N}_./-]+/gu) ?? [];
+}
+function tokenOverlapScore(left, right) {
+    if (left.length === 0 || right.length === 0)
+        return 0;
+    const counts = new Map();
+    for (const token of right)
+        counts.set(token, (counts.get(token) ?? 0) + 1);
+    let overlap = 0;
+    for (const token of left) {
+        const count = counts.get(token) ?? 0;
+        if (count <= 0)
+            continue;
+        overlap += 1;
+        if (count === 1)
+            counts.delete(token);
+        else
+            counts.set(token, count - 1);
+    }
+    return overlap / Math.max(left.length, right.length);
+}
+function shouldGuardAgainstMigrationCopy(file, text) {
+    if (!/^wiki\/(?:canonical|decisions|sources)\//.test(file))
+        return false;
+    if (file.endsWith("/migration-inbox.md"))
+        return false;
+    const starter = templates_1.starterFiles[file];
+    return !starter || normalizeMigrationCopyText(starter) !== normalizeMigrationCopyText(text);
+}
+function migrationCopyDiagnostics(files) {
+    const roots = legacyWikiRoots();
+    if (roots.length === 0)
+        return [];
+    const guardedFiles = files.filter((file) => shouldGuardAgainstMigrationCopy(file, (0, workspace_1.read)(file)));
+    if (guardedFiles.length === 0)
+        return [];
+    const legacyEntries = roots
+        .flatMap((legacyRoot) => (0, wiki_files_1.walkMarkdownFiles)((0, workspace_1.abs)(legacyRoot), [], (0, workspace_1.abs)(legacyRoot)))
+        .map((legacyFile) => {
+        const text = (0, workspace_1.read)(legacyFile.path);
+        return {
+            file: legacyFile.path,
+            basePath: legacyFile.basePath,
+            basename: path.basename(legacyFile.basePath).toLowerCase(),
+            normalized: normalizeMigrationCopyText(text),
+            tokens: migrationCopyTokens(text),
+        };
+    })
+        .filter((entry) => entry.normalized.length >= 200);
+    const diagnostics = [];
+    for (const file of guardedFiles) {
+        const text = (0, workspace_1.read)(file);
+        const normalized = normalizeMigrationCopyText(text);
+        if (normalized.length < 200)
+            continue;
+        const tokens = migrationCopyTokens(text);
+        const basename = path.basename(file).toLowerCase();
+        const relativeWithinWiki = file.replace(/^wiki\//, "");
+        for (const legacy of legacyEntries) {
+            if (normalized === legacy.normalized) {
+                diagnostics.push({
+                    code: "migration-copy-risk",
+                    severity: "error",
+                    file,
+                    message: `body matches legacy document ${legacy.file}; rewrite project truth instead of copying legacy files`,
+                });
+                break;
+            }
+            if (tokens.length >= 80 && legacy.tokens.length >= 80) {
+                const score = tokenOverlapScore(tokens, legacy.tokens);
+                if (score >= 0.92) {
+                    diagnostics.push({
+                        code: "migration-copy-risk",
+                        severity: "error",
+                        file,
+                        message: `body is ${Math.round(score * 100)}% token-similar to legacy document ${legacy.file}; rewrite and cite current-project evidence`,
+                    });
+                    break;
+                }
+            }
+            if (relativeWithinWiki === legacy.basePath || basename === legacy.basename) {
+                diagnostics.push({
+                    code: "migration-filename-reuse",
+                    severity: "warn",
+                    file,
+                    message: `filename also exists in legacy document ${legacy.file}; verify this is a rewrite, not a file copy`,
+                });
+                break;
+            }
+        }
+    }
+    return diagnostics;
+}
 function collectQualityDiagnostics() {
     const diagnostics = [];
     const files = (0, wiki_files_1.wikiMarkdownFiles)();
@@ -540,6 +650,7 @@ function collectQualityDiagnostics() {
             }
         }
     }
+    diagnostics.push(...migrationCopyDiagnostics(files));
     return diagnostics.sort((a, b) => a.file.localeCompare(b.file) || a.code.localeCompare(b.code));
 }
 function runLinkCheckMode() {

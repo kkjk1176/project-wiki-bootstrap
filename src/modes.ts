@@ -5,8 +5,8 @@ import * as path from "node:path";
 import { captureCategory, captureContent, captureTitle, issueBodyFile, issueDraftTitle, noGitConfigMode, queryTerm } from "./args";
 import type { FileStatus, HookConfig, PruneCandidate, QueryResult, WikiDiagnostic, WikiLinkReference } from "./types";
 import { abs, exists, hasMetadataHeader, isGitRepository, metadataValue, mkdirp, parseJson, read, root, stripMetadataHeader, today, upsertMarkedSection, walkFilesUnder, write } from "./workspace";
-import { metadata } from "./templates";
-import { canonicalBodyForLint, extractWikiLinks, hasGlossaryNeedSignal, hasGlossaryTable, metadataSummary, stripMarkedSection, wikiLinkForFile, wikiMarkdownFiles, wikiTitleForFile } from "./wiki-files";
+import { metadata, starterFiles } from "./templates";
+import { canonicalBodyForLint, extractWikiLinks, hasGlossaryNeedSignal, hasGlossaryTable, metadataSummary, stripMarkedSection, walkMarkdownFiles, wikiLinkForFile, wikiMarkdownFiles, wikiTitleForFile } from "./wiki-files";
 
 const scopedAutoIndexThreshold = 40;
 const scopedAutoIndexMarker = "<!-- PROJECT-WIKI-SCOPED-AUTO-INDEX -->";
@@ -444,6 +444,111 @@ export function collectLinkDiagnostics(): WikiDiagnostic[] {
   return diagnostics.sort((a, b) => a.severity.localeCompare(b.severity) || a.file.localeCompare(b.file) || a.code.localeCompare(b.code));
 }
 
+function legacyWikiRoots(): string[] {
+  if (!fs.existsSync(root)) return [];
+  return fs.readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && /^wiki_legacy(?:_|$)/.test(entry.name))
+    .map((entry) => entry.name)
+    .sort();
+}
+
+function normalizeMigrationCopyText(text: string): string {
+  return stripMetadataHeader(text)
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/\r?\n/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function migrationCopyTokens(text: string): string[] {
+  return normalizeMigrationCopyText(text).match(/[\p{L}\p{N}_./-]+/gu) ?? [];
+}
+
+function tokenOverlapScore(left: string[], right: string[]): number {
+  if (left.length === 0 || right.length === 0) return 0;
+  const counts = new Map<string, number>();
+  for (const token of right) counts.set(token, (counts.get(token) ?? 0) + 1);
+  let overlap = 0;
+  for (const token of left) {
+    const count = counts.get(token) ?? 0;
+    if (count <= 0) continue;
+    overlap += 1;
+    if (count === 1) counts.delete(token);
+    else counts.set(token, count - 1);
+  }
+  return overlap / Math.max(left.length, right.length);
+}
+
+function shouldGuardAgainstMigrationCopy(file: string, text: string): boolean {
+  if (!/^wiki\/(?:canonical|decisions|sources)\//.test(file)) return false;
+  if (file.endsWith("/migration-inbox.md")) return false;
+  const starter = starterFiles[file as keyof typeof starterFiles];
+  return !starter || normalizeMigrationCopyText(starter) !== normalizeMigrationCopyText(text);
+}
+
+function migrationCopyDiagnostics(files: string[]): WikiDiagnostic[] {
+  const roots = legacyWikiRoots();
+  if (roots.length === 0) return [];
+  const guardedFiles = files.filter((file) => shouldGuardAgainstMigrationCopy(file, read(file)));
+  if (guardedFiles.length === 0) return [];
+  const legacyEntries = roots
+    .flatMap((legacyRoot) => walkMarkdownFiles(abs(legacyRoot), [], abs(legacyRoot)))
+    .map((legacyFile) => {
+      const text = read(legacyFile.path);
+      return {
+        file: legacyFile.path,
+        basePath: legacyFile.basePath,
+        basename: path.basename(legacyFile.basePath).toLowerCase(),
+        normalized: normalizeMigrationCopyText(text),
+        tokens: migrationCopyTokens(text),
+      };
+    })
+    .filter((entry) => entry.normalized.length >= 200);
+  const diagnostics: WikiDiagnostic[] = [];
+  for (const file of guardedFiles) {
+    const text = read(file);
+    const normalized = normalizeMigrationCopyText(text);
+    if (normalized.length < 200) continue;
+    const tokens = migrationCopyTokens(text);
+    const basename = path.basename(file).toLowerCase();
+    const relativeWithinWiki = file.replace(/^wiki\//, "");
+    for (const legacy of legacyEntries) {
+      if (normalized === legacy.normalized) {
+        diagnostics.push({
+          code: "migration-copy-risk",
+          severity: "error",
+          file,
+          message: `body matches legacy document ${legacy.file}; rewrite project truth instead of copying legacy files`,
+        });
+        break;
+      }
+      if (tokens.length >= 80 && legacy.tokens.length >= 80) {
+        const score = tokenOverlapScore(tokens, legacy.tokens);
+        if (score >= 0.92) {
+          diagnostics.push({
+            code: "migration-copy-risk",
+            severity: "error",
+            file,
+            message: `body is ${Math.round(score * 100)}% token-similar to legacy document ${legacy.file}; rewrite and cite current-project evidence`,
+          });
+          break;
+        }
+      }
+      if (relativeWithinWiki === legacy.basePath || basename === legacy.basename) {
+        diagnostics.push({
+          code: "migration-filename-reuse",
+          severity: "warn",
+          file,
+          message: `filename also exists in legacy document ${legacy.file}; verify this is a rewrite, not a file copy`,
+        });
+        break;
+      }
+    }
+  }
+  return diagnostics;
+}
+
 export function collectQualityDiagnostics(): WikiDiagnostic[] {
   const diagnostics: WikiDiagnostic[] = [];
   const files = wikiMarkdownFiles();
@@ -487,6 +592,7 @@ export function collectQualityDiagnostics(): WikiDiagnostic[] {
       }
     }
   }
+  diagnostics.push(...migrationCopyDiagnostics(files));
   return diagnostics.sort((a, b) => a.file.localeCompare(b.file) || a.code.localeCompare(b.code));
 }
 

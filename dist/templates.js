@@ -56,6 +56,7 @@ Storage boundaries:
 - \`sources/\` contains external reference summaries and source notes.
 - \`inbox/\` and migration inbox files contain candidates, not canonical truth.
 - Do not store non-project LLM memory, assistant preferences, collaboration reminders, or workflow instructions in \`canonical/\` or \`decisions/\`; use root \`AGENTS.md\`, \`CLAUDE.md\`, hooks, or skills instead.
+- During migration review, do not copy legacy markdown files directly into \`canonical/\`, \`decisions/\`, or \`sources/\`. Rewrite only the useful project meaning, cite current-project evidence when possible, and keep unresolved or ambiguous material in migration inboxes.
 
 Update rules:
 
