@@ -447,3 +447,16 @@ test -f .codex/skills/project-wiki-bootstrap/SKILL.md
 test -x .codex/skills/project-wiki-bootstrap/dist/init-project-wiki.js
 test -f .claude/skills/project-wiki-bootstrap/SKILL.md
 test -x .claude/skills/project-wiki-bootstrap/dist/init-project-wiki.js
+
+mkdir "$TMPDIR/benchmark"
+cd "$TMPDIR/benchmark"
+node "$ROOT/benchmarks/project-metrics.js" --quick --out benchmark.json > benchmark.stdout.json
+test -f benchmark.json
+node -e 'const m=require("./benchmark.json"); if (m.schema_version !== 3 || m.scale !== "quick") process.exit(1); if (m.measurement.runs !== 1 || m.measurement.timing_status !== "single-run") process.exit(1); if (m.scenarios.length !== 3) process.exit(1); if (!m.scenarios.every((s) => Array.isArray(s.validations) && s.validations.every((v) => v.status === "passed"))) process.exit(1); if (!m.scenarios.every((s) => s.measurement && s.measurement.runs === 1)) process.exit(1); if (m.large_project_assumptions.monorepo_workspaces < 5) process.exit(1); if (m.summary.min_token_savings_percent <= 0) process.exit(1); if (m.summary.code_index_files <= 0 || m.summary.code_index_files_per_second <= 0) process.exit(1); if (typeof m.summary.code_index_incremental_reindexed_files !== "number" || m.summary.code_index_incremental_ms <= 0) process.exit(1); if (!m.notes.some((note) => note.includes("release evidence"))) process.exit(1)'
+node "$ROOT/benchmarks/project-metrics.js" --quick --baseline benchmark.json --out benchmark-comparison.json > benchmark-comparison.stdout.json
+node -e 'const m=require("./benchmark-comparison.json"); if (!m.comparison) process.exit(1); if (m.comparison.baseline_package_version !== m.package_version) process.exit(1); if (typeof m.comparison.summary_min_token_savings_delta_percent !== "number") process.exit(1); if (!["passed","failed"].includes(m.comparison.regression_status)) process.exit(1); if (!m.comparison.regression_thresholds) process.exit(1)'
+node "$ROOT/benchmarks/project-metrics.js" --quick --save-baseline saved-baseline.json --markdown release-summary.md > benchmark-release.stdout.json
+test -f saved-baseline.json
+test -f release-summary.md
+grep -q "Project Wiki Bootstrap Benchmark" release-summary.md
+grep -q "Claim Boundaries" release-summary.md

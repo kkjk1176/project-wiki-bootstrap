@@ -37,6 +37,8 @@
     "node": ">=18"
   },
   "scripts": {
+    "benchmark": "node benchmarks/project-metrics.js",
+    "benchmark:baseline": "node benchmarks/project-metrics.js --save-baseline --markdown",
     "build": "tsc && chmod +x dist/init-project-wiki.js",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && npm run typecheck && bash tests/smoke.sh",
