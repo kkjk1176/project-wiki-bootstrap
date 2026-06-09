@@ -3,7 +3,7 @@ import * as childProcess from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as ts from "typescript";
-import { codeFilesMode, codeIndexOutput, codeIndexScopes, codeIndexMode, codeQuerySql, codeSearchSymbol, codeStatusMode } from "./args";
+import { codeFilesMode, codeIndexOutput, codeIndexScopes, codeIndexMode, codeQuerySql, codeReportMode, codeSearchSymbol, codeStatusMode } from "./args";
 import { abs, mkdirp, normalizePath, root } from "./workspace";
 
 type SqliteValue = string | number | null;
@@ -32,6 +32,14 @@ interface CodeFile {
 }
 
 interface IndexStatements {
+  deleteConfig: SqliteStatement;
+  deleteEdge: SqliteStatement;
+  deleteFile: SqliteStatement;
+  deleteFileFts: SqliteStatement;
+  deleteImport: SqliteStatement;
+  deleteRoute: SqliteStatement;
+  deleteSymbol: SqliteStatement;
+  deleteSymbolFts: SqliteStatement;
   insertConfig: SqliteStatement;
   insertEdge: SqliteStatement;
   insertFile: SqliteStatement;
@@ -48,6 +56,18 @@ interface CodeIndexStaleness {
   changed: number;
   deleted: number;
   stale: boolean;
+}
+
+interface OwnerSummary {
+  bytes: number;
+  configs: number;
+  file_count: number;
+  imports: number;
+  languages: string;
+  lines: number;
+  owner: string;
+  routes: number;
+  symbols: number;
 }
 
 const ignoredDirectories = new Set([
@@ -91,6 +111,7 @@ const languageByExtension: Record<string, string> = {
 };
 
 const codeEvidenceDirectory = ".project-wiki";
+const codeIndexSchemaVersion = "3";
 const configExtensions = new Set([".json", ".yaml", ".yml", ".toml"]);
 const maxIndexedBytes = 1024 * 1024;
 const httpMethods = new Set(["all", "delete", "get", "patch", "post", "put"]);
@@ -169,6 +190,7 @@ function isJavaScriptLike(relativePath: string): boolean {
 function extractionProfile(relativePath: string): string {
   if (isJavaScriptLike(relativePath)) return "typescript-ast";
   if (fileLanguage(relativePath) === "python") return "python-light";
+  if (fileLanguage(relativePath) === "go") return "go-light";
   if (fileLanguage(relativePath) === "config") return "config";
   return "inventory-only";
 }
@@ -319,12 +341,67 @@ function setupDatabase(database: SqliteDatabase): void {
   `);
 }
 
+function createIndexStatements(database: SqliteDatabase): IndexStatements {
+  return {
+    deleteConfig: database.prepare("DELETE FROM configs WHERE file_path = ?"),
+    deleteEdge: database.prepare("DELETE FROM edges WHERE file_path = ?"),
+    deleteFile: database.prepare("DELETE FROM files WHERE path = ?"),
+    deleteFileFts: database.prepare("DELETE FROM files_fts WHERE path = ?"),
+    deleteImport: database.prepare("DELETE FROM imports WHERE from_file = ?"),
+    deleteRoute: database.prepare("DELETE FROM routes WHERE file_path = ?"),
+    deleteSymbol: database.prepare("DELETE FROM symbols WHERE file_path = ?"),
+    deleteSymbolFts: database.prepare("DELETE FROM symbols_fts WHERE file_path = ?"),
+    insertConfig: database.prepare("INSERT INTO configs (key, value, file_path, line) VALUES (?, ?, ?, ?)"),
+    insertEdge: database.prepare("INSERT INTO edges (kind, source_kind, source, target_kind, target, file_path, line, evidence) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
+    insertFile: database.prepare("INSERT INTO files (path, language, profile, kind, bytes, lines, hash) VALUES (?, ?, ?, ?, ?, ?, ?)"),
+    insertFileFts: database.prepare("INSERT INTO files_fts (path, language, profile, content) VALUES (?, ?, ?, ?)"),
+    insertImport: database.prepare("INSERT INTO imports (from_file, to_ref, imported, line, raw) VALUES (?, ?, ?, ?, ?)"),
+    insertMeta: database.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)"),
+    insertRoute: database.prepare("INSERT INTO routes (method, route, file_path, line, handler) VALUES (?, ?, ?, ?, ?)"),
+    insertSymbol: database.prepare("INSERT INTO symbols (name, kind, file_path, line, signature) VALUES (?, ?, ?, ?, ?)"),
+    insertSymbolFts: database.prepare("INSERT INTO symbols_fts (name, kind, file_path, signature) VALUES (?, ?, ?, ?)"),
+  };
+}
+
+function removeIndexedFile(filePath: string, statements: IndexStatements): void {
+  statements.deleteConfig.run(filePath);
+  statements.deleteEdge.run(filePath);
+  statements.deleteImport.run(filePath);
+  statements.deleteRoute.run(filePath);
+  statements.deleteSymbol.run(filePath);
+  statements.deleteSymbolFts.run(filePath);
+  statements.deleteFileFts.run(filePath);
+  statements.deleteFile.run(filePath);
+}
+
+function indexCodeFile(file: CodeFile, statements: IndexStatements): void {
+  statements.insertFile.run(file.path, file.language, file.profile, file.language === "config" ? "config" : "source", file.bytes, file.lines, file.hash);
+  statements.insertFileFts.run(file.path, file.language, file.profile, file.text);
+  if (file.profile === "typescript-ast") indexJavaScriptLike(file, statements);
+  else if (file.profile === "python-light") indexPythonLight(file, statements);
+  else if (file.profile === "go-light") indexGoLight(file, statements);
+  if (file.language === "config") indexConfigs(file, statements.insertConfig);
+}
+
+function writeIndexMetadata(scopes: string[], statements: IndexStatements): void {
+  statements.insertMeta.run("schema_version", codeIndexSchemaVersion);
+  statements.insertMeta.run("updated_at", new Date().toISOString());
+  statements.insertMeta.run("root", root);
+  statements.insertMeta.run("scopes", scopes.join(", "));
+  statements.insertMeta.run("scopes_json", JSON.stringify(scopes));
+  statements.insertMeta.run("terminology", "code evidence index");
+}
+
 function oneLine(text: string): string {
   return text.replace(/\s+/g, " ").trim().slice(0, 240);
 }
 
 function printRows(rows: Record<string, unknown>[]): void {
   console.log(JSON.stringify(rows, null, 2));
+}
+
+function printJson(value: unknown): void {
+  console.log(JSON.stringify(value, null, 2));
 }
 
 function tsLine(sourceFile: ts.SourceFile, node: ts.Node): number {
@@ -505,6 +582,42 @@ function indexPythonLight(file: CodeFile, statements: IndexStatements): void {
   }
 }
 
+function insertGoImport(file: CodeFile, statements: IndexStatements, toRef: string, imported: string, line: number, raw: string): void {
+  if (!toRef) return;
+  statements.insertImport.run(file.path, toRef, imported, line, raw);
+  insertEdge(statements, "import", "file", file.path, "module", toRef, file, line, raw);
+}
+
+function indexGoLight(file: CodeFile, statements: IndexStatements): void {
+  const symbolPatterns: Array<[RegExp, string, (match: RegExpExecArray) => string, (match: RegExpExecArray) => string]> = [
+    [/^\s*func\s*\(\s*[^)]*\)\s*([A-Za-z_]\w*)\s*\(([^)]*)\)/gm, "method", (match) => match[1] ?? "", (match) => `func (...) ${match[1] ?? ""}(${match[2] ?? ""})`],
+    [/^\s*func\s+([A-Za-z_]\w*)\s*\(([^)]*)\)/gm, "function", (match) => match[1] ?? "", (match) => `func ${match[1] ?? ""}(${match[2] ?? ""})`],
+    [/^\s*type\s+([A-Za-z_]\w*)\s+(struct|interface)?/gm, "type", (match) => match[1] ?? "", (match) => `type ${match[1] ?? ""} ${match[2] ?? ""}`.trim()],
+    [/^\s*const\s+([A-Za-z_]\w*)\b/gm, "constant", (match) => match[1] ?? "", (match) => `const ${match[1] ?? ""}`],
+    [/^\s*var\s+([A-Za-z_]\w*)\b/gm, "variable", (match) => match[1] ?? "", (match) => `var ${match[1] ?? ""}`],
+  ];
+  for (const [regex, kind, name, signature] of symbolPatterns) {
+    insertMatches(file, regex, (match, line) => insertSymbol(statements, name(match), kind, file, line, signature(match)));
+  }
+
+  insertMatches(file, /^\s*import\s+(?:(?:([A-Za-z_]\w*|[_.])\s+)?\"([^\"]+)\"|`([^`]+)`)/gm, (match, line) => {
+    const imported = match[1] ?? "";
+    const toRef = match[2] ?? match[3] ?? "";
+    insertGoImport(file, statements, toRef, imported, line, match[0].trim());
+  });
+
+  insertMatches(file, /^\s*import\s*\(([\s\S]*?)^\s*\)/gm, (blockMatch) => {
+    const block = blockMatch[1] ?? "";
+    const blockStart = blockMatch.index ?? 0;
+    for (const lineMatch of block.matchAll(/^\s*(?:([A-Za-z_]\w*|[_.])\s+)?\"([^\"]+)\"/gm)) {
+      const imported = lineMatch[1] ?? "";
+      const toRef = lineMatch[2] ?? "";
+      const line = lineNumber(file.text, blockStart + (lineMatch.index ?? 0));
+      insertGoImport(file, statements, toRef, imported, line, lineMatch[0].trim());
+    }
+  });
+}
+
 function indexConfigs(file: CodeFile, insertConfig: SqliteStatement): void {
   if (path.basename(file.path) === "package.json") {
     try {
@@ -568,6 +681,20 @@ function indexedScopes(database: SqliteDatabase): string[] {
     .filter(Boolean);
 }
 
+function scopesMatch(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((scope, index) => scope === right[index]);
+}
+
+function canIncrementallyUpdate(database: SqliteDatabase, scopes: string[]): boolean {
+  return readMetaValue(database, "schema_version") === codeIndexSchemaVersion && scopesMatch(indexedScopes(database), scopes);
+}
+
+function removeDatabaseFiles(databasePath: string): void {
+  for (const filePath of [databasePath, `${databasePath}-wal`, `${databasePath}-shm`]) {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  }
+}
+
 function codeIndexStaleness(database: SqliteDatabase): CodeIndexStaleness {
   const scopes = indexedScopes(database);
   const current = new Map(discoverCodeFiles(scopes.length > 0 ? scopes : ["."]).map((file) => {
@@ -603,6 +730,93 @@ function warnIfCodeIndexStale(database: SqliteDatabase): void {
   console.error(`code evidence index may be stale: ${staleness.changed} changed, ${staleness.added} added, ${staleness.deleted} deleted; rerun --code-index`);
 }
 
+function ownerKey(filePath: string): string {
+  const parts = normalizePath(filePath).split("/").filter(Boolean);
+  if (parts.length === 0) return ".";
+  if (["apps", "libs", "packages", "services"].includes(parts[0] ?? "") && parts[1]) return `${parts[0]}/${parts[1]}`;
+  return parts[0] ?? ".";
+}
+
+type OwnerNumericField = "bytes" | "configs" | "file_count" | "imports" | "lines" | "routes" | "symbols";
+
+function incrementOwnerField(owners: Map<string, OwnerSummary>, filePath: string, field: OwnerNumericField, increment = 1): void {
+  const key = ownerKey(filePath);
+  const current = owners.get(key) ?? {
+    bytes: 0,
+    configs: 0,
+    file_count: 0,
+    imports: 0,
+    languages: "",
+    lines: 0,
+    owner: key,
+    routes: 0,
+    symbols: 0,
+  };
+  current[field] += increment;
+  owners.set(key, current);
+}
+
+function codeReport(database: SqliteDatabase): Record<string, unknown> {
+  const databasePath = codeEvidenceDatabasePath();
+  const staleness = codeIndexStaleness(database);
+  const coverageRows = database.prepare(`
+    SELECT 'files' AS table_name, count(*) AS rows FROM files
+    UNION ALL SELECT 'symbols', count(*) FROM symbols
+    UNION ALL SELECT 'imports', count(*) FROM imports
+    UNION ALL SELECT 'routes', count(*) FROM routes
+    UNION ALL SELECT 'configs', count(*) FROM configs
+    UNION ALL SELECT 'edges', count(*) FROM edges
+  `).all();
+  const files = database.prepare("SELECT path, language, profile, lines, bytes FROM files ORDER BY path").all();
+  const owners = new Map<string, OwnerSummary>();
+  const ownerLanguages = new Map<string, Set<string>>();
+  for (const row of files) {
+    const filePath = String(row.path);
+    const key = ownerKey(filePath);
+    incrementOwnerField(owners, filePath, "file_count");
+    incrementOwnerField(owners, filePath, "lines", Number(row.lines ?? 0));
+    incrementOwnerField(owners, filePath, "bytes", Number(row.bytes ?? 0));
+    const languages = ownerLanguages.get(key) ?? new Set<string>();
+    languages.add(String(row.language));
+    ownerLanguages.set(key, languages);
+  }
+  for (const row of database.prepare("SELECT file_path, count(*) AS count FROM symbols GROUP BY file_path").all()) incrementOwnerField(owners, String(row.file_path), "symbols", Number(row.count ?? 0));
+  for (const row of database.prepare("SELECT file_path, count(*) AS count FROM routes GROUP BY file_path").all()) incrementOwnerField(owners, String(row.file_path), "routes", Number(row.count ?? 0));
+  for (const row of database.prepare("SELECT from_file, count(*) AS count FROM imports GROUP BY from_file").all()) incrementOwnerField(owners, String(row.from_file), "imports", Number(row.count ?? 0));
+  for (const row of database.prepare("SELECT file_path, count(*) AS count FROM configs GROUP BY file_path").all()) incrementOwnerField(owners, String(row.file_path), "configs", Number(row.count ?? 0));
+  const ownershipSummary = Array.from(owners.values()).map((owner) => ({
+    ...owner,
+    languages: Array.from(ownerLanguages.get(String(owner.owner)) ?? []).sort().join(", "),
+  })).sort((left, right) => right.file_count - left.file_count || left.owner.localeCompare(right.owner)).slice(0, 25);
+
+  return {
+    schema_version: 1,
+    generated_at: new Date().toISOString(),
+    database: databasePath.relativePath,
+    scopes: indexedScopes(database),
+    stale: {
+      files: staleness.added + staleness.changed + staleness.deleted,
+      changed: staleness.changed,
+      added: staleness.added,
+      deleted: staleness.deleted,
+    },
+    report_sections: ["evidence_coverage", "ownership_summary", "language_profile_summary", "route_inventory", "dependency_hotspots", "config_inventory", "edge_summary"],
+    evidence_coverage: Object.fromEntries(coverageRows.map((row) => [String(row.table_name), Number(row.rows ?? 0)])),
+    ownership_summary: ownershipSummary,
+    language_profile_summary: database.prepare("SELECT language, profile, count(*) AS files, sum(lines) AS lines, sum(bytes) AS bytes FROM files GROUP BY language, profile ORDER BY files DESC, language").all(),
+    route_inventory: database.prepare("SELECT method, route, file_path, line, handler FROM routes ORDER BY file_path, line LIMIT 100").all(),
+    dependency_hotspots: {
+      imports: database.prepare("SELECT to_ref, count(DISTINCT from_file) AS importing_files, count(*) AS reference_count FROM imports GROUP BY to_ref ORDER BY importing_files DESC, reference_count DESC, to_ref LIMIT 50").all(),
+      package_dependencies: database.prepare("SELECT substr(key, 12) AS package, value AS version, file_path FROM configs WHERE key LIKE 'dependency:%' ORDER BY file_path, package LIMIT 100").all(),
+    },
+    config_inventory: database.prepare("SELECT key, value, file_path, line FROM configs WHERE key LIKE 'script:%' OR key LIKE 'dependency:%' OR key LIKE 'devDependency:%' ORDER BY file_path, key LIMIT 150").all(),
+    edge_summary: {
+      by_kind: database.prepare("SELECT kind, count(*) AS edges FROM edges GROUP BY kind ORDER BY edges DESC, kind").all(),
+      fanout: database.prepare("SELECT source_kind, source, kind, count(DISTINCT target) AS targets, file_path FROM edges GROUP BY source_kind, source, kind, file_path ORDER BY targets DESC, source LIMIT 50").all(),
+    },
+  };
+}
+
 function prepareOutputPath(): void {
   const databasePath = codeEvidenceDatabasePath();
   mkdirp(path.dirname(databasePath.relativePath));
@@ -613,42 +827,48 @@ function prepareOutputPath(): void {
 export function runCodeIndexMode(): void {
   prepareOutputPath();
   const databasePath = codeEvidenceDatabasePath();
-  if (fs.existsSync(databasePath.absolutePath)) fs.unlinkSync(databasePath.absolutePath);
+  const scopes = codeScopes();
+  const existingIndex = fs.existsSync(databasePath.absolutePath);
+  let incremental = false;
+  if (existingIndex) {
+    const existingDatabase = openDatabase(databasePath.absolutePath);
+    try {
+      incremental = canIncrementallyUpdate(existingDatabase, scopes);
+    } finally {
+      existingDatabase.close();
+    }
+  }
+  if (!incremental) removeDatabaseFiles(databasePath.absolutePath);
   const database = openDatabase(databasePath.absolutePath);
   try {
-    setupDatabase(database);
-    const statements: IndexStatements = {
-      insertConfig: database.prepare("INSERT INTO configs (key, value, file_path, line) VALUES (?, ?, ?, ?)"),
-      insertEdge: database.prepare("INSERT INTO edges (kind, source_kind, source, target_kind, target, file_path, line, evidence) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
-      insertFile: database.prepare("INSERT INTO files (path, language, profile, kind, bytes, lines, hash) VALUES (?, ?, ?, ?, ?, ?, ?)"),
-      insertFileFts: database.prepare("INSERT INTO files_fts (path, language, profile, content) VALUES (?, ?, ?, ?)"),
-      insertImport: database.prepare("INSERT INTO imports (from_file, to_ref, imported, line, raw) VALUES (?, ?, ?, ?, ?)"),
-      insertMeta: database.prepare("INSERT INTO meta (key, value) VALUES (?, ?)"),
-      insertRoute: database.prepare("INSERT INTO routes (method, route, file_path, line, handler) VALUES (?, ?, ?, ?, ?)"),
-      insertSymbol: database.prepare("INSERT INTO symbols (name, kind, file_path, line, signature) VALUES (?, ?, ?, ?, ?)"),
-      insertSymbolFts: database.prepare("INSERT INTO symbols_fts (name, kind, file_path, signature) VALUES (?, ?, ?, ?)"),
-    };
+    if (!incremental) setupDatabase(database);
+    const statements = createIndexStatements(database);
+    const currentFiles = discoverCodeFiles(scopes).map(readCodeFile);
+    const currentByPath = new Map(currentFiles.map((file) => [file.path, file] as const));
+    const indexed = incremental ? new Map(database.prepare("SELECT path, hash FROM files").all().map((row) => [String(row.path), String(row.hash)] as const)) : new Map<string, string>();
+    const deletedPaths = incremental ? Array.from(indexed.keys()).filter((filePath) => !currentByPath.has(filePath)) : [];
+    const reindexedFiles = incremental
+      ? currentFiles.filter((file) => indexed.get(file.path) !== file.hash)
+      : currentFiles;
+    const unchangedFiles = incremental ? currentFiles.length - reindexedFiles.length : 0;
 
-    const scopes = codeScopes();
-    const files = discoverCodeFiles(scopes).map(readCodeFile);
     database.exec("BEGIN");
-    statements.insertMeta.run("created_at", new Date().toISOString());
-    statements.insertMeta.run("root", root);
-    statements.insertMeta.run("scopes", scopes.join(", "));
-    statements.insertMeta.run("scopes_json", JSON.stringify(scopes));
-    statements.insertMeta.run("terminology", "code evidence index");
-    for (const file of files) {
-      statements.insertFile.run(file.path, file.language, file.profile, file.language === "config" ? "config" : "source", file.bytes, file.lines, file.hash);
-      statements.insertFileFts.run(file.path, file.language, file.profile, file.text);
-      if (file.profile === "typescript-ast") indexJavaScriptLike(file, statements);
-      else if (file.profile === "python-light") indexPythonLight(file, statements);
-      if (file.language === "config") indexConfigs(file, statements.insertConfig);
+    if (!incremental) statements.insertMeta.run("created_at", new Date().toISOString());
+    writeIndexMetadata(scopes, statements);
+    for (const filePath of deletedPaths) removeIndexedFile(filePath, statements);
+    for (const file of reindexedFiles) {
+      if (incremental && indexed.has(file.path)) removeIndexedFile(file.path, statements);
+      indexCodeFile(file, statements);
     }
     database.exec("COMMIT");
     console.log("Project wiki code evidence index complete.");
     console.log(`database: ${databasePath.relativePath}`);
+    console.log(`mode: ${incremental ? "incremental" : "full"}`);
     console.log(`scopes: ${scopes.join(", ")}`);
-    console.log(`files: ${files.length}`);
+    console.log(`files: ${currentFiles.length}`);
+    console.log(`reindexed_files: ${reindexedFiles.length}`);
+    console.log(`deleted_files: ${deletedPaths.length}`);
+    console.log(`unchanged_files: ${unchangedFiles}`);
   } catch (error) {
     try {
       database.exec("ROLLBACK");
@@ -676,6 +896,17 @@ export function runCodeQueryMode(): void {
     database.exec("PRAGMA query_only = ON");
     warnIfCodeIndexStale(database);
     printRows(database.prepare(codeQuerySql).all());
+  } finally {
+    database.close();
+  }
+}
+
+export function runCodeReportMode(): void {
+  requireExistingIndex();
+  const database = openDatabase(codeEvidenceDatabasePath().absolutePath);
+  try {
+    warnIfCodeIndexStale(database);
+    printJson(codeReport(database));
   } finally {
     database.close();
   }
@@ -734,5 +965,5 @@ export function runCodeSearchSymbolMode(): void {
 }
 
 export function isCodeEvidenceMode(): boolean {
-  return codeIndexMode || Boolean(codeQuerySql) || codeStatusMode || codeFilesMode || Boolean(codeSearchSymbol);
+  return codeIndexMode || Boolean(codeQuerySql) || codeReportMode || codeStatusMode || codeFilesMode || Boolean(codeSearchSymbol);
 }

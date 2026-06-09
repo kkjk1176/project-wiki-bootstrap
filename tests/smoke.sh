@@ -89,6 +89,40 @@ node "$CLI" --query Smoke
 node "$CLI" --prune-check
 node "$CLI" --lint
 
+mkdir "$TMPDIR/scoped-index"
+cd "$TMPDIR/scoped-index"
+node "$CLI"
+for app in 0 1 2; do
+  for page in $(seq 1 18); do
+    cat > "wiki/canonical/apps-app-${app}-topic-${page}.md" <<EOF
+---
+status: active
+updated: $(date +%F)
+scope: project-canonical
+read_budget: medium
+decision_ref: none
+review_trigger: smoke scoped route
+---
+
+# App ${app} Topic ${page}
+
+## TL;DR
+
+- Scoped route smoke page.
+EOF
+  done
+done
+node "$CLI" --refresh-index > scoped-refresh.log
+grep -q "wiki/index.md auto-discovered pages" scoped-refresh.log
+test -f wiki/indexes/auto-apps-app-0.md
+test -f wiki/indexes/auto-apps-app-1.md
+test -f wiki/indexes/auto-apps-app-2.md
+grep -q "\[\[indexes/auto-apps-app-0\]\]" wiki/index.md
+grep -q "\[\[canonical/apps-app-0-topic-1\]\]" wiki/indexes/auto-apps-app-0.md
+node -e 'const fs=require("fs"); if (fs.readFileSync("wiki/index.md","utf8").length > 4500) process.exit(1)'
+node "$CLI" --link-check > scoped-link-check.log
+grep -q "0 warnings" scoped-link-check.log
+
 mkdir "$TMPDIR/issue-draft"
 cd "$TMPDIR/issue-draft"
 node "$CLI"
@@ -350,6 +384,22 @@ function healthHandler(req, res) {
 
 app.get("/health", healthHandler);
 EOF
+cat > src/server.go <<'EOF'
+package service
+
+import (
+  "context"
+  httpalias "net/http"
+)
+
+type GoServer struct{}
+
+func GoHandler(ctx context.Context) error {
+  return nil
+}
+
+func (s *GoServer) ServeHTTP(w httpalias.ResponseWriter, r *httpalias.Request) {}
+EOF
 cat > ignored/ignored.js <<'EOF'
 function ignoredHandler() {}
 EOF
@@ -372,11 +422,13 @@ SERVICE_TOKEN: do-not-index
 EOF
 node "$CLI" --code-index --code-scope src --code-scope package.json --code-scope .env.example --code-scope secrets.json --code-scope service-token.yaml > code-index.log
 test -f .project-wiki/code-evidence.sqlite
-grep -q "files: 3" code-index.log
+grep -q "files: 4" code-index.log
 node "$CLI" --code-query "select path from files order by path" > code-query.json
 grep -q "src/app.js" code-query.json
+grep -q "src/server.go" code-query.json
 node "$CLI" --code-files > code-files.json
 grep -q "typescript-ast" code-files.json
+grep -q "go-light" code-files.json
 ! grep -q "ignored/ignored.js" code-files.json
 grep -q ".env.example" code-files.json
 ! grep -q ".env.local" code-files.json
@@ -391,10 +443,16 @@ grep -q "edges" code-status.json
 grep -q "stale_files" code-status.json
 node "$CLI" --code-search-symbol healthHandler > code-symbols.json
 grep -q "healthHandler" code-symbols.json
+node "$CLI" --code-search-symbol GoHandler > go-symbols.json
+grep -q "GoHandler" go-symbols.json
+node "$CLI" --code-query "select to_ref from imports where to_ref = 'net/http'" > go-imports.json
+grep -q "net/http" go-imports.json
 node "$CLI" --code-query "select route from routes where route = '/health'" > code-routes.json
 grep -q "/health" code-routes.json
 node "$CLI" --code-query "select kind from edges where kind = 'route_to_handler'" > code-edges.json
 grep -q "route_to_handler" code-edges.json
+node "$CLI" --code-report > code-report.json
+node -e 'const r=require("./code-report.json"); if (r.schema_version !== 1) process.exit(1); if (!r.report_sections.includes("ownership_summary")) process.exit(1); if (!r.evidence_coverage || r.evidence_coverage.files !== 4 || r.evidence_coverage.routes < 1) process.exit(1); if (!r.language_profile_summary.some((row) => row.language === "go" && row.profile === "go-light")) process.exit(1); if (!r.ownership_summary.some((row) => row.owner === "src" && row.routes >= 1)) process.exit(1); if (!r.route_inventory.some((row) => row.route === "/health")) process.exit(1); if (!r.dependency_hotspots.package_dependencies.some((row) => row.package === "express")) process.exit(1); if (!r.edge_summary.by_kind.some((row) => row.kind === "route_to_handler")) process.exit(1)'
 if node "$CLI" --code-query "with changed as (delete from files returning path) select path from changed" > bad-code-query.log 2>&1; then
   echo "expected writable-looking --code-query to fail" >&2
   exit 1
@@ -411,6 +469,17 @@ node "$CLI" --code-status > stale-status.json
 node -e 'const rows = require("./stale-status.json"); const metric = Object.fromEntries(rows.map((row) => [row.metric, row.value])); if (metric.stale_files !== 3 || metric.stale_changed_files !== 1 || metric.stale_added_files !== 1 || metric.stale_deleted_files !== 1) process.exit(1)'
 node "$CLI" --code-files > stale-files.json 2> stale-warning.log
 grep -q "code evidence index may be stale" stale-warning.log
+node "$CLI" --code-index --code-scope src --code-scope package.json --code-scope .env.example --code-scope secrets.json --code-scope service-token.yaml > incremental-code-index.log
+grep -q "mode: incremental" incremental-code-index.log
+grep -q "files: 4" incremental-code-index.log
+grep -q "reindexed_files: 2" incremental-code-index.log
+grep -q "deleted_files: 1" incremental-code-index.log
+node "$CLI" --code-status > fresh-status.json
+node -e 'const rows = require("./fresh-status.json"); const metric = Object.fromEntries(rows.map((row) => [row.metric, row.value])); if (metric.stale_files !== 0 || metric.files !== 4) process.exit(1)'
+node "$CLI" --code-search-symbol newHandler > incremental-symbols.json
+grep -q "newHandler" incremental-symbols.json
+node "$CLI" --code-files > fresh-files.json
+! grep -q ".env.example" fresh-files.json
 node "$CLI" --code-index --code-index-out .project-wiki/custom.sqlite --code-scope src > custom-code-index.log
 test -f .project-wiki/custom.sqlite
 if node "$CLI" --code-index --code-index-out ../outside.sqlite > bad-code-index-out.log 2>&1; then
@@ -424,7 +493,7 @@ if node "$CLI" --code-index --code-scope ../outside > bad-code-scope.log 2>&1; t
   exit 1
 fi
 grep -q "must stay inside the project root" bad-code-scope.log
-if node "$CLI" --code-index --code-status > bad-code-mode.log 2>&1; then
+if node "$CLI" --code-index --code-report > bad-code-mode.log 2>&1; then
   echo "expected mixed code evidence modes to fail" >&2
   exit 1
 fi

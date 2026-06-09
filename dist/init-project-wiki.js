@@ -36,6 +36,7 @@ Options:
   --code-index                     Build the disposable .project-wiki code evidence index.
   --code-query <sql>               Run conservative read-only SQL over the code evidence index.
   --code-status, --code-files      Inspect the code evidence index.
+  --code-report                    Print architecture and ownership summaries from the code evidence index.
   --code-search-symbol <term>      Search indexed symbols.
   --help                           Show this help.`);
 }
@@ -66,13 +67,17 @@ if (args_1.command === "install-skill") {
     (0, install_skill_1.runInstallSkillMode)();
     process.exit(0);
 }
-const activeCodeModes = [args_1.codeQueryMode, args_1.codeStatusMode, args_1.codeFilesMode, args_1.codeSearchSymbolMode, args_1.codeIndexMode].filter(Boolean).length;
+const activeCodeModes = [args_1.codeQueryMode, args_1.codeReportMode, args_1.codeStatusMode, args_1.codeFilesMode, args_1.codeSearchSymbolMode, args_1.codeIndexMode].filter(Boolean).length;
 if (activeCodeModes > 1) {
-    console.error("Use one code evidence mode at a time: --code-index, --code-query, --code-status, --code-files, or --code-search-symbol.");
+    console.error("Use one code evidence mode at a time: --code-index, --code-query, --code-report, --code-status, --code-files, or --code-search-symbol.");
     process.exit(1);
 }
 if (args_1.codeQueryMode) {
     codeIndex().runCodeQueryMode();
+    process.exit(0);
+}
+if (args_1.codeReportMode) {
+    codeIndex().runCodeReportMode();
     process.exit(0);
 }
 if (args_1.codeStatusMode) {

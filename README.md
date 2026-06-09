@@ -130,6 +130,8 @@ Use diagnostics when the wiki exists but needs review or cleanup:
 
 Broken links fail the check. Duplicate routes, orphan pages, and quality findings are reported as actionable warnings so humans or agents can decide whether to merge, route, refresh, or rewrite documents.
 
+When `--refresh-index` finds many unrouted pages, it keeps `wiki/index.md` compact by linking generated scoped routers under `wiki/indexes/auto-*.md` instead of expanding one large table in the startup index.
+
 ## GitHub Issue Drafts
 
 Use issue drafts when a project-wiki-bootstrap run caused a side effect, exposed confusing behavior, failed in a specific environment, or generated unexpected files:
@@ -188,6 +190,7 @@ Useful commands:
 | Build or refresh the cache | `npx project-wiki-bootstrap --code-index --code-scope src` |
 | Show counts and stale cache status | `npx project-wiki-bootstrap --code-status` |
 | List indexed files | `npx project-wiki-bootstrap --code-files` |
+| Summarize architecture, ownership, routes, dependencies, and evidence coverage | `npx project-wiki-bootstrap --code-report` |
 | Search symbols | `npx project-wiki-bootstrap --code-search-symbol Auth` |
 | Run read-only SQL | `npx project-wiki-bootstrap --code-query "select path from files order by path"` |
 
@@ -202,6 +205,7 @@ The matrix lists only languages with implemented symbol/import extraction. Other
 | TypeScript | `.ts`, `.tsx`, `.cts`, `.mts` | `typescript-ast` | functions, classes, methods, variables, interfaces, types, enums, imports, exports, calls, common HTTP routes |
 | JavaScript | `.js`, `.jsx`, `.cjs`, `.mjs` | `typescript-ast` | functions, classes, methods, variables, imports, exports, `require()` calls, calls, common HTTP routes |
 | Python | `.py` | `python-light` | functions, classes, `import`, `from ... import` |
+| Go | `.go` | `go-light` | functions, methods, types, consts, vars, single imports, import blocks |
 
 Config files (`.json`, `.yaml`, `.yml`, `.toml`, `.env.example`, `package.json`, `tsconfig.json`) are indexed separately as configuration evidence.
 
@@ -243,10 +247,14 @@ npm install
 npm run typecheck
 npm run build
 npm test
+npm run benchmark
+npm run benchmark:baseline
 npm pack --dry-run
 ```
 
 When editing TypeScript files under `src/`, rebuild before committing so `dist/` stays current.
+
+`npm run benchmark` is a maintainer benchmark, not a public user workflow. Its default large-project suite covers docs-heavy wiki, monorepo wiki, and code-heavy TypeScript index scenarios, then reports objective release metrics such as compact startup token savings, wiki read-time reduction, bootstrap/doctor/query timing, full and incremental code-index timing, code-index throughput, and optional comparison against a saved baseline JSON. Use `npm run benchmark:baseline` when preparing release evidence; it writes a versioned JSON baseline and Markdown summary under `benchmarks/`. Smoke tests use `--quick` only to validate the benchmark report shape.
 
 ## License
 

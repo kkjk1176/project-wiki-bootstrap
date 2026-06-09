@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.issueDraftTitle = exports.captureCategory = exports.captureContent = exports.captureTitle = exports.codeIndexScopes = exports.codeIndexOutput = exports.codeSearchSymbol = exports.codeQuerySql = exports.queryTerm = exports.codeSearchSymbolMode = exports.codeQueryMode = exports.codeFilesMode = exports.codeStatusMode = exports.codeIndexMode = exports.noGitConfigMode = exports.reviewMigrationMode = exports.pruneCheckMode = exports.captureInboxMode = exports.refreshIndexMode = exports.issueDraftMode = exports.glossaryMode = exports.fixMode = exports.doctorMode = exports.qualityCheckMode = exports.linkCheckMode = exports.lintMode = exports.migrateMode = exports.missingValueOptions = exports.unknownOptions = exports.args = exports.commandArgs = exports.command = exports.unknownCommand = exports.helpMode = exports.rawArgs = void 0;
+exports.issueDraftTitle = exports.captureCategory = exports.captureContent = exports.captureTitle = exports.codeIndexScopes = exports.codeIndexOutput = exports.codeSearchSymbol = exports.codeQuerySql = exports.queryTerm = exports.codeSearchSymbolMode = exports.codeQueryMode = exports.codeFilesMode = exports.codeStatusMode = exports.codeReportMode = exports.codeIndexMode = exports.noGitConfigMode = exports.reviewMigrationMode = exports.pruneCheckMode = exports.captureInboxMode = exports.refreshIndexMode = exports.issueDraftMode = exports.glossaryMode = exports.fixMode = exports.doctorMode = exports.qualityCheckMode = exports.linkCheckMode = exports.lintMode = exports.migrateMode = exports.missingValueOptions = exports.unknownOptions = exports.args = exports.commandArgs = exports.command = exports.unknownCommand = exports.helpMode = exports.rawArgs = void 0;
 exports.argValue = argValue;
 exports.argValues = argValues;
 exports.rawArgs = process.argv.slice(2);
@@ -18,7 +18,9 @@ const flagsWithoutValues = new Set([
     "--code-evidence-status",
     "--code-files",
     "--code-index",
+    "--code-report",
     "--code-status",
+    "--code-evidence-report",
     "--dry-run",
     "--glossary-init",
     "--doctor",
@@ -93,6 +95,7 @@ exports.pruneCheckMode = exports.args.has("--prune-check");
 exports.reviewMigrationMode = exports.args.has("--review-migration") || exports.args.has("--semantic-migrate");
 exports.noGitConfigMode = exports.args.has("--no-git-config");
 exports.codeIndexMode = exports.args.has("--code-index") || exports.args.has("--code-evidence-index");
+exports.codeReportMode = exports.args.has("--code-report") || exports.args.has("--code-evidence-report");
 exports.codeStatusMode = exports.args.has("--code-status") || exports.args.has("--code-evidence-status");
 exports.codeFilesMode = exports.args.has("--code-files") || exports.args.has("--code-evidence-files");
 exports.codeQueryMode = hasFlag("--code-query") || hasFlag("--code-evidence-query");

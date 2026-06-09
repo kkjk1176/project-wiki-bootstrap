@@ -14,7 +14,9 @@ const flagsWithoutValues: Set<string> = new Set([
   "--code-evidence-status",
   "--code-files",
   "--code-index",
+  "--code-report",
   "--code-status",
+  "--code-evidence-report",
   "--dry-run",
   "--glossary-init",
   "--doctor",
@@ -92,6 +94,7 @@ export const pruneCheckMode = args.has("--prune-check");
 export const reviewMigrationMode = args.has("--review-migration") || args.has("--semantic-migrate");
 export const noGitConfigMode = args.has("--no-git-config");
 export const codeIndexMode = args.has("--code-index") || args.has("--code-evidence-index");
+export const codeReportMode = args.has("--code-report") || args.has("--code-evidence-report");
 export const codeStatusMode = args.has("--code-status") || args.has("--code-evidence-status");
 export const codeFilesMode = args.has("--code-files") || args.has("--code-evidence-files");
 export const codeQueryMode = hasFlag("--code-query") || hasFlag("--code-evidence-query");
