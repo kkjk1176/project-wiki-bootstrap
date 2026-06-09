@@ -11,9 +11,11 @@ review_trigger: product direction, audience, scope, success criteria, or languag
 
 ## TL;DR
 
-- Project Wiki Bootstrap은 작은 저장소뿐 아니라 큰 프로젝트와 모노레포에서도 쓸 수 있는 token-efficient project planning wiki를 생성/유지하는 TypeScript CLI 패키지다.
-- 핵심 사용자는 Codex/Claude Code 같은 LLM coding agent를 쓰는 개발자와, agent가 반복해서 읽을 durable project context가 필요한 팀, 특히 큰 저장소에서 context routing이 필요한 팀이다.
-- 성공 기준은 idempotent bootstrap, 기존 수동 내용 보존, compact startup hook, lint 가능한 생성물, migration/search/inbox, scoped routing, code-evidence 보조 모드다.
+- Project Wiki Bootstrap은 작은 저장소뿐 아니라 큰 프로젝트와 모노레포에서도 쓸 수 있는 token-efficient project planning wiki와 재생성 가능한 code evidence index를 생성/유지하는 TypeScript CLI 패키지다.
+- 핵심 사용자는 Codex/Claude Code 같은 LLM coding agent를 쓰는 개발자와, agent가 반복해서 읽을 durable project context 및 코드 근거가 필요한 팀, 특히 큰 저장소에서 context routing과 code-backed planning update가 필요한 팀이다.
+- 성공 기준은 idempotent bootstrap, 기존 수동 내용 보존, compact startup hook, lint 가능한 생성물, migration/search/inbox, scoped routing, code-evidence index/report/impact 모드다.
+- README는 설치만 `npx`로 안내하고, agent/LLM이 실행하는 bootstrap, diagnostics, migration, code evidence 등 lifecycle 명령은 설치된 local `node .../dist/init-project-wiki.js` runner로 안내해야 한다.
+- Benchmark는 사용자 실행 기능이 아니라 maintainer release evidence다. Public README는 benchmark 사용법보다 결과값, 측정 조건, claim boundary를 먼저 안내해야 한다.
 - 이 코드 기반 wiki의 canonical 내용 언어는 현재 요청에 맞춰 한국어로 둔다.
 
 ## Current State
@@ -31,6 +33,7 @@ Code-proven facts:
 Product framing:
 
 - 이 프로젝트는 “작은 프로젝트 전용 wiki bootstrap”이 아니다. 작은 저장소에서도 startup context를 작게 유지하지만, 큰 프로젝트와 모노레포에서 scoped routing, diagnostics, migration, code evidence를 통해 agent가 필요한 문서와 코드 근거를 좁혀 읽도록 설계되어야 한다.
+- Public-facing README는 CLI 옵션 목록을 먼저 나열하기보다 문제, 정량 결과, agent execution model, 주요 기능, 작동 방식 순서로 제품 가치를 설명해야 한다. Detailed CLI reference는 뒤쪽에 두되, agent 실행 예시는 local runner를 기준으로 해야 한다.
 
 ## Audience
 

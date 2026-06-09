@@ -15,6 +15,7 @@ review_trigger: package entrypoints, build/test commands, committed dist policy,
 - Source is TypeScript under `src/`; committed `dist/` is the executable package output.
 - `project-wiki-bootstrap@0.1.2` is currently published on npm as the `latest` dist-tag.
 - The package requires Node `>=22.13` for stable `node:sqlite` and one runtime policy across CLI and installed skill runners.
+- Public install documentation may use `npx project-wiki-bootstrap install-skill ...`; agent/LLM lifecycle documentation should use installed local `node .../dist/init-project-wiki.js` runners for bootstrap, diagnostics, migration, and code evidence commands.
 - The broad verification command is `npm test`.
 - Maintainer release evidence uses benchmark commands; public claims should cite benchmark values and deltas.
 - Detailed package/release and verification/skill-installation contracts live in the child pages below.
@@ -34,3 +35,12 @@ Code-proven behavior:
 - `npm test` runs build, typecheck, unit tests, and smoke tests; evidence: `package.json`.
 - `install-skill` copies reusable skill files into Codex and/or Claude skill directories without bootstrapping a target wiki; evidence: `src/install-skill.ts`.
 - When changing `src/`, rebuild `dist/` before release or commit review because the published binary path points at `dist/init-project-wiki.js`.
+
+## README Command Policy
+
+Accepted project documentation policy:
+
+- Use `npx project-wiki-bootstrap install-skill ...` for initial skill installation because that is the npm distribution path.
+- After installation, examples intended for Codex, Claude Code, or any LLM agent should use the local installed runner, such as `node .codex/skills/project-wiki-bootstrap/dist/init-project-wiki.js`.
+- Avoid documenting `npx project-wiki-bootstrap --lint`, `npx project-wiki-bootstrap --doctor`, `npx project-wiki-bootstrap --code-index`, or other lifecycle modes as the normal agent execution path.
+- Direct shell users may still use the npm binary when registry access is available, but that path should not be the default in agent-facing lifecycle tables.

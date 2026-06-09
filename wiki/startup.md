@@ -11,9 +11,8 @@ review_trigger: session-start summary, routing, language policy, or open project
 
 ## TL;DR
 
-- `project-wiki-bootstrap` is a TypeScript CLI for compact repo-local project planning wikis.
-- Project truth lives in `wiki/canonical/`, decisions in `wiki/decisions/`, sources in `wiki/sources/`.
-- Wiki operating rules and wiki operating decisions live in `wiki/meta/`.
+- TypeScript CLI for compact repo-local planning wikis plus optional code evidence indexing.
+- Project truth: `wiki/canonical/`; decisions: `wiki/decisions/`; sources: `wiki/sources/`; wiki ops: `wiki/meta/`.
 - At session start, read only this file and `wiki/index.md`; load details on demand.
 - Current code-backed canonical project pages are written in Korean for this repository context; generated operating templates remain English by default.
 - Update the wiki in the same turn when project-planning content changes.
@@ -35,9 +34,9 @@ review_trigger: session-start summary, routing, language policy, or open project
 - Users: Codex/Claude Code developers and teams, including large-repo teams.
 - Scenario: bootstrap/update `./wiki`, agent instructions, hooks, diagnostics, scoped routing, optional code evidence.
 - Success: idempotent bootstrap, preservation-first edits, compact hooks, diagnostics, migration copy-risk detection, scoped routing, code evidence.
-- Large-project state: incremental indexing, code reports, Tree-sitter mode, workspace graph/CODEOWNERS, scoped routing, and v9 benchmarks exist; deeper semantic extraction remains next.
-- Measurement policy: metrics are maintainer release evidence, not public CLI workflow.
-- Project content language: Korean for current code-backed canonical pages unless the user or project context changes it.
+- Large-project state: incremental indexing, code reports, Tree-sitter, workspace graph/CODEOWNERS, scoped routing, and v9 benchmarks exist.
+- Measurement/README: metrics are release evidence; install via `npx`; agent lifecycle via local `node`; benchmark tokens mean Markdown context avoided vs naive full-wiki scan, not actual LLM use.
+- Project content language: Korean unless user/project context changes it.
 
 ## Recent Project Decisions
 

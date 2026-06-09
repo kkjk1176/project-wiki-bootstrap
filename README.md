@@ -5,62 +5,96 @@
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.13-brightgreen.svg)](https://nodejs.org/)
 [![Code evidence index](https://img.shields.io/badge/code%20evidence-node%3Asqlite-blue.svg)](https://nodejs.org/api/sqlite.html)
 
-Bootstrap a token-efficient project planning wiki for humans and LLM coding agents, from small repositories to large projects and monorepos.
+Compact project memory and code evidence for Codex and Claude Code.
+
+Project Wiki Bootstrap creates a repo-local planning wiki, compact startup hooks, and an optional SQLite code evidence index so agents can start with the project plan, route to the right document, and inspect code-backed evidence without repeatedly scanning the whole repository.
 
 Languages: [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh.md)
 
-The generated wiki keeps startup context small:
+## Why It Exists
 
-- `wiki/startup.md`: current project summary
-- `wiki/index.md`: router for detailed pages to read next
-- `wiki/canonical/`, `wiki/decisions/`, `wiki/sources/`, and `wiki/meta/`: detailed context loaded only when needed
+LLM coding agents waste context and tool calls when every session starts by rediscovering the project: reading old chats, scanning markdown, grepping source, and guessing which files matter.
 
-## What You Get
+Project Wiki Bootstrap gives agents two local sources of truth:
 
-Project Wiki Bootstrap creates a repo-local planning memory that coding agents can read predictably.
+| Surface | What It Gives The Agent |
+| --- | --- |
+| `wiki/startup.md` + `wiki/index.md` | A compact session-start summary and router, so only the relevant planning pages are read. |
+| `wiki/canonical/` and `wiki/decisions/` | Current project facts, constraints, risks, package contracts, CLI behavior, and durable decisions. |
+| `.codex/` and `.claude/` hooks | Automatic startup context for Codex and Claude Code without loading the full wiki. |
+| `.project-wiki/code-evidence.sqlite` | Regenerable code evidence for files, symbols, imports, routes, ownership, workspace graph, reports, and impact checks. |
+| Diagnostics and migration modes | Link checks, quality checks, migration inboxes, stale-signal reports, and issue drafts when the workflow exposes a problem. |
 
-Core features:
+The core idea is not "write more docs." It is "keep the first agent read small, then give it reliable routes to deeper project truth and code evidence."
 
-- Wiki-first project instructions for Codex and Claude Code
-- Session-start hooks that load only compact startup context
-- Canonical pages for current project facts, assumptions, risks, decisions, and sources
-- Wiki diagnostics for broken links, duplicate routes, orphan pages, stale signals, and quality gaps
-- Migration support for existing markdown docs
-- Optional code evidence index for code-backed wiki updates in larger repositories
+## Benchmark Results
 
-The result is less repeated context gathering. Agents can start with the current project intent, read detailed pages only when needed, and leave project decisions in files that humans can review.
+Benchmarks are maintainer release evidence, not a public user workflow. They exist so README and release notes can make bounded claims with numbers instead of vague performance language.
 
-## Quick Start
+Latest local large report: `benchmarks/reports/current-large.json`, generated 2026-06-09T07:38:25.482Z on Node v22.19.0, darwin arm64, Apple M4 Pro, 5 measured runs with 1 discarded warmup run. Timing status was `variable`; unstable metrics were `monorepo.doctor_ms`, `monorepo.query_ms`, and `code.tree_sitter_architecture_report_ms`. The report source-control fingerprint was dirty, so treat these as local validation values, not a clean release-gate baseline.
 
-### 1. Install the Skill
+| Metric | Result |
+| --- | ---: |
+| Median estimated Markdown context avoidance | 99.61% |
+| Minimum estimated Markdown context avoidance | 99.43% |
+| Median read-time reduction | 99.49% |
+| Minimum read-time reduction | 99.23% |
+| Wiki pages measured | 1,601 |
+| Code-index files | 1,608 |
+| Code-index time | 332.777ms |
+| Code-index throughput | 4,832.06 files/sec |
+| Incremental index time | 186.54ms |
+| Full-to-incremental time reduction | 42.15% |
+| Architecture report time | 252.961ms |
+| Architecture report evidence tables | 6 |
+| Architecture report routes | 24 |
+| Sample repos | 3 |
+| Benchmark runs | 5 |
+| Warmup runs | 1 |
+| Timing status | variable |
+| Unstable metrics | 3 |
 
-Install the skill once for Codex and Claude Code:
+Scenario summary:
+
+| Scenario | Scale | Result |
+| --- | ---: | --- |
+| Docs-heavy wiki | 500 pages | 99.74% estimated Markdown context avoidance, 99.49% read reduction, 43.423ms query |
+| Monorepo wiki | 320 pages | 99.43% estimated Markdown context avoidance, 99.23% read reduction, 83.149ms doctor (unstable) |
+| Scoped router wiki | 720 pages | 99.61% estimated Markdown context avoidance, 99.54% read reduction, 67.701ms refresh |
+| Code-heavy mixed index | 1,608 files | 332.777ms full index, 186.54ms incremental, 252.961ms report, 650.093ms Tree-sitter index |
+| Sample repo validation | 3 repos, 16 files | 136.106ms median code index, 135.797ms median architecture report |
+
+Claim boundary: token estimates use `ceil(characters / 4)` as a Markdown context-size estimate. They are not model tokenizer output, API billing counters, or measured real LLM token consumption. The benchmark compares the wiki context read by targeted retrieval against a naive full-wiki scan that reads every wiki Markdown file in the fixture. Code-index metrics are local CLI subprocess timings over generated and sample repositories; sample repo values are observational evidence for those explicit fixtures. Metrics marked unstable should be rerun before they are used as release claims.
+
+## Install
+
+Use `npx` only for initial skill installation:
 
 ```bash
 npx project-wiki-bootstrap install-skill --scope user --agents both
 ```
 
-Use `--scope project` to install the skill into the current repository instead:
+Install into the current repository instead:
 
 ```bash
 npx project-wiki-bootstrap install-skill --scope project --agents both
 ```
 
-`install-skill` only installs reusable skill files under `.codex/skills/` and/or `.claude/skills/`. It does not create or update `AGENTS.md`, `CLAUDE.md`, `wiki/`, `.codex/hooks.json`, or `.claude/settings.json`.
-
-Install options:
+`install-skill` copies reusable skill files only. It does not create or update `AGENTS.md`, `CLAUDE.md`, `wiki/`, `.codex/hooks.json`, or `.claude/settings.json`.
 
 | Situation | Command |
 | --- | --- |
-| Install for Codex and Claude Code globally | `npx project-wiki-bootstrap install-skill --scope user --agents both` |
-| Install for Codex and Claude Code in the current repository | `npx project-wiki-bootstrap install-skill --scope project --agents both` |
-| Install for only one agent | `npx project-wiki-bootstrap install-skill --agents codex` or `--agents claude` |
+| Install globally for Codex and Claude Code | `npx project-wiki-bootstrap install-skill --scope user --agents both` |
+| Install in the current repository | `npx project-wiki-bootstrap install-skill --scope project --agents both` |
+| Install only Codex | `npx project-wiki-bootstrap install-skill --agents codex` |
+| Install only Claude Code | `npx project-wiki-bootstrap install-skill --agents claude` |
+| Preview install output | `npx project-wiki-bootstrap install-skill --scope project --agents both --dry-run` |
 
-### Local Runner For Agent Sessions
+`--agents` also accepts comma-separated values such as `codex,claude`. `--scope` accepts `user` or `project`.
 
-After the skill is installed, Codex and Claude Code should run the installed local copy instead of fetching the package from npm again. This avoids network failures and avoids unpinned public package execution in restricted agent environments.
+## Agent Runner
 
-Common local runners:
+After installation, agents should run the installed local copy with `node`, not `npx`. This avoids network access and unpinned package execution in restricted agent environments.
 
 | Installation | Runner |
 | --- | --- |
@@ -69,88 +103,54 @@ Common local runners:
 | User-scoped Codex skill | `node ~/.codex/skills/project-wiki-bootstrap/dist/init-project-wiki.js` |
 | User-scoped Claude skill | `node ~/.claude/skills/project-wiki-bootstrap/dist/init-project-wiki.js` |
 
-Direct shell users can still use `npx project-wiki-bootstrap ...` when registry access is available. Agents using the installed skill should prefer the local runner and should report the real error if it fails instead of manually recreating generated files as a fallback.
-
-### 2. Bootstrap or Maintain the Project Wiki
-
-After installing the skill, run the wiki command from the target project root:
+The examples below use:
 
 ```bash
-npx project-wiki-bootstrap
+PROJECT_WIKI_BOOTSTRAP="node .codex/skills/project-wiki-bootstrap/dist/init-project-wiki.js"
 ```
 
-Wiki commands:
+Use the matching local runner for your install location.
 
-| Situation | Command |
+## Common Agent Workflows
+
+Bootstrap or update the wiki from the project root:
+
+```bash
+$PROJECT_WIKI_BOOTSTRAP
+```
+
+Validate and maintain the wiki:
+
+| Goal | Agent Command |
 | --- | --- |
-| Create or update the wiki | `npx project-wiki-bootstrap` |
-| Migrate existing docs/wiki content | `npx project-wiki-bootstrap --migrate` |
-| Check links and document quality | `npx project-wiki-bootstrap --doctor` |
-| Safely refresh generated routing while checking | `npx project-wiki-bootstrap --doctor --fix` |
-| Install hook files without changing git config | `npx project-wiki-bootstrap --no-git-config` |
+| Create or update the wiki | `$PROJECT_WIKI_BOOTSTRAP` |
+| Migrate existing docs/wiki content | `$PROJECT_WIKI_BOOTSTRAP --migrate` |
+| Validate generated setup | `$PROJECT_WIKI_BOOTSTRAP --lint` |
+| Check links and document quality | `$PROJECT_WIKI_BOOTSTRAP --doctor` |
+| Refresh generated routing before diagnostics | `$PROJECT_WIKI_BOOTSTRAP --doctor --fix` |
+| Search project wiki content | `$PROJECT_WIKI_BOOTSTRAP --query "authentication decisions"` |
+| Capture a candidate note | `$PROJECT_WIKI_BOOTSTRAP --capture-inbox --title "Candidate" --content "Details"` |
+| Report stale or unresolved wiki pages | `$PROJECT_WIKI_BOOTSTRAP --prune-check` |
+| Install hook files without changing git config | `$PROJECT_WIKI_BOOTSTRAP --no-git-config` |
 
-## Skill Actions
+Build and inspect code evidence:
 
-After installation, ask Codex or Claude Code to:
-
-- bootstrap, update, or validate the project wiki
-- check wiki links, duplicate routes, orphan pages, and document quality
-- search wiki pages
-- refresh `wiki/index.md`
-- capture a candidate note into `wiki/inbox/project-candidates.md`
-- report stale or undecided wiki pages
-- draft a GitHub issue body for problems or side effects found while using the skill
-- create `wiki/canonical/glossary.md`
-- migrate existing markdown docs into reviewable inboxes
-- analyze code and update wiki pages with code-backed evidence
-
-Examples:
-
-```text
-Apply project-wiki-bootstrap to this project.
-Validate the project wiki setup.
-Search the project wiki for authentication decisions.
-Analyze apps/web and packages/api, then update the wiki from the code.
-Review the migrated wiki inbox.
-```
-
-In Claude Code, you can also invoke `/project-wiki-bootstrap`.
-
-## Wiki Diagnostics
-
-Use diagnostics when the wiki exists but needs review or cleanup:
-
-| Purpose | Command |
+| Goal | Agent Command |
 | --- | --- |
-| Validate generated setup | `npx project-wiki-bootstrap --lint` |
-| Check broken links, duplicate index routes, and orphan pages | `npx project-wiki-bootstrap --link-check` |
-| Check stale pages, unresolved signals, missing TL;DRs, budget drift, and evidence gaps | `npx project-wiki-bootstrap --quality-check` |
-| Run setup, link, and quality checks together | `npx project-wiki-bootstrap --doctor` |
-| Apply safe routing fixes before diagnostics | `npx project-wiki-bootstrap --doctor --fix` |
+| Build the default evidence cache | `$PROJECT_WIKI_BOOTSTRAP --code-index --code-scope src` |
+| Build multiple scopes | `$PROJECT_WIKI_BOOTSTRAP --code-index --code-scope src --code-scope packages/api` |
+| Require incremental update | `$PROJECT_WIKI_BOOTSTRAP --code-index --incremental` |
+| Force a full rebuild | `$PROJECT_WIKI_BOOTSTRAP --code-index --code-index-full` |
+| Use optional Tree-sitter backend | `$PROJECT_WIKI_BOOTSTRAP --code-index --code-parser tree-sitter` |
+| Show cache status | `$PROJECT_WIKI_BOOTSTRAP --code-status` |
+| List indexed files | `$PROJECT_WIKI_BOOTSTRAP --code-files` |
+| Print architecture and ownership report | `$PROJECT_WIKI_BOOTSTRAP --code-report` |
+| Print one report section | `$PROJECT_WIKI_BOOTSTRAP --code-report --code-report-section routes` |
+| Inspect impact evidence | `$PROJECT_WIKI_BOOTSTRAP --code-impact healthHandler` |
+| Search indexed symbols | `$PROJECT_WIKI_BOOTSTRAP --code-search-symbol Auth` |
+| Run conservative read-only SQL | `$PROJECT_WIKI_BOOTSTRAP --code-query "select path from files order by path"` |
 
-Broken links fail the check. Duplicate routes, orphan pages, and quality findings are reported as actionable warnings so humans or agents can decide whether to merge, route, refresh, or rewrite documents.
-
-When `--refresh-index` finds many unrouted pages, it keeps `wiki/index.md` compact by linking generated scoped routers under `wiki/indexes/auto-*.md` instead of expanding one large table in the startup index.
-
-## GitHub Issue Drafts
-
-Use issue drafts when a project-wiki-bootstrap run caused a side effect, exposed confusing behavior, failed in a specific environment, or generated unexpected files:
-
-```bash
-npx project-wiki-bootstrap --issue-draft --issue-title "Report unexpected wiki hook behavior"
-```
-
-The command is read-only. It prints a Markdown problem-report template with reproduction steps, expected vs actual behavior, side effects, affected generated files, environment context, and diagnostics to attach. It does not create a GitHub issue or require network access.
-
-After explicit user approval in a GitHub-backed repository, create the issue with GitHub CLI:
-
-```bash
-npx project-wiki-bootstrap --issue-create --issue-title "Report unexpected wiki hook behavior"
-```
-
-This runs `gh auth status` and then `gh issue create --title ... --body-file ...`. It requires an authenticated `gh`, a GitHub remote, and network access. If any of those fail, the command reports the real error instead of falling back to a draft.
-
-When an LLM using this skill discovers a project-wiki-bootstrap bug, regression, workflow mismatch, confusing generated behavior, or unintended side effect, the LLM runs the read-only issue draft before finishing the work unless the user explicitly says they do not want an issue draft. This does not replace fixing the local problem.
+Only one code evidence mode can run at a time. `--incremental`, `--code-index-full`, and `--code-parser` are valid only with `--code-index`.
 
 ## What Gets Installed
 
@@ -167,7 +167,7 @@ Startup hooks:
 - `.claude/settings.json`
 - `.claude/hooks/wiki-session-start.js`
 
-Optional git hook files:
+Git hook files:
 
 - `.githooks/prepare-commit-msg`
 - `.githooks/wiki-commit-trailers.js`
@@ -176,111 +176,104 @@ Wiki directories:
 
 - `wiki/canonical/`
 - `wiki/decisions/`
+- `wiki/inbox/`
 - `wiki/meta/`
 - `wiki/sources/`
-- `wiki/inbox/`
 - `wiki/migration/`
 
-## Code Evidence Index
+Disposable code evidence cache:
 
-For large repositories, the skill can build a disposable SQLite evidence cache:
+- `.project-wiki/code-evidence.sqlite`
 
-```bash
-npx project-wiki-bootstrap --code-index --code-scope src
-```
+## How It Works
 
-The cache lives under `.project-wiki/` and is regenerated as needed. It is evidence for wiki updates, not canonical wiki content. Code changes are not watched automatically; inspection commands report stale cache counts or warnings so you can rerun `--code-index` intentionally. `.env*` files other than `.env.example` and obvious sensitive config filenames containing secret, credential, token, private, or key terms are excluded by default.
+1. Bootstrap creates a preservation-first wiki structure and marker-bounded agent instruction sections.
+2. Session-start hooks inject only `wiki/startup.md` and `wiki/index.md`, with character budgets.
+3. Detailed planning truth stays in canonical, decision, source, and meta pages that agents read on demand.
+4. `--refresh-index` routes newly discovered wiki pages; large route sets are split into `wiki/indexes/auto-*.md` scoped routers.
+5. `--code-index` creates a disposable SQLite evidence cache under `.project-wiki/`.
+6. `--code-report`, `--code-impact`, `--code-search-symbol`, and `--code-query` expose code-backed evidence for planning updates.
+7. Diagnostics report broken links, duplicate routes, orphan pages, stale pages, missing TL;DRs, evidence gaps, and migration copy risks.
 
-Useful commands:
-
-| Purpose | Command |
-| --- | --- |
-| Build or refresh the cache | `npx project-wiki-bootstrap --code-index --code-scope src` |
-| Build with the optional Tree-sitter parser backend | `npx project-wiki-bootstrap --code-index --code-parser tree-sitter --code-scope src` |
-| Require an incremental cache update | `npx project-wiki-bootstrap --code-index --incremental --code-scope src` |
-| Force a full cache rebuild | `npx project-wiki-bootstrap --code-index --code-index-full --code-scope src` |
-| Show counts and stale cache status | `npx project-wiki-bootstrap --code-status` |
-| List indexed files | `npx project-wiki-bootstrap --code-files` |
-| Summarize architecture, ownership, parser backends, workspace graph, routes, dependencies, and evidence coverage | `npx project-wiki-bootstrap --code-report` |
-| Print one bounded report section | `npx project-wiki-bootstrap --code-report --code-report-section routes` |
-| Inspect workspace and CODEOWNERS signals | `npx project-wiki-bootstrap --code-report --code-report-section workspaces` |
-| Inspect workspace package-manager, lockfile, and internal dependency graph signals | `npx project-wiki-bootstrap --code-report --code-report-section workspace-graph` |
-| Inspect impact evidence for a file, symbol, route, or module | `npx project-wiki-bootstrap --code-impact healthHandler` |
-| Search symbols | `npx project-wiki-bootstrap --code-search-symbol Auth` |
-| Run read-only SQL | `npx project-wiki-bootstrap --code-query "select path from files order by path"` |
-
-Project Wiki Bootstrap requires Node 22.13+ for the whole package. The CLI includes code evidence indexing built on `node:sqlite`; that API was added in Node 22.5.0 and became available without `--experimental-sqlite` in Node 22.13.0. Using 22.13+ as the minimum keeps bootstrap, diagnostics, installed skill runners, and code evidence commands on one supported runtime instead of splitting feature-specific Node requirements. `--code-parser tree-sitter` uses optional `@sengac/tree-sitter*` packages and fails with a package error if those optional dependencies are not installed.
+Migration is intentionally review-first. `--migrate` preserves an existing `wiki/` as `wiki_legacy*`, writes migration inboxes, and avoids copying legacy markdown directly into new canonical truth.
 
 ## Language Support Matrix
 
-The matrix lists only languages with implemented symbol/import extraction. Other recognized extensions are inventory-only and are not counted as language support. Default mode uses `typescript-ast`, `python-light`, and `go-light`; `--code-parser tree-sitter` switches supported source files to `tree-sitter-*` profiles. Ruby remains inventory-only until a compatible grammar package is selected. Treat structural parser evidence as stronger evidence, and check lightweight rows in source before making high-confidence canonical claims.
+The matrix lists languages with implemented symbol/import extraction. Other recognized extensions are inventory-only. Default mode uses `typescript-ast`, `python-light`, `go-light`, config extraction, and inventory rows. `--code-parser tree-sitter` switches supported source files to `tree-sitter-*` profiles.
 
-| Language | Extensions | Extraction profile | Indexed evidence |
-| --- | --- | --- | --- |
-| TypeScript | `.ts`, `.tsx`, `.cts`, `.mts` | `typescript-ast`; optional `tree-sitter-typescript` / `tree-sitter-tsx` | functions, classes, methods, variables, interfaces, types, enums, imports, exports, calls, common HTTP routes |
-| JavaScript | `.js`, `.jsx`, `.cjs`, `.mjs` | `typescript-ast`; optional `tree-sitter-javascript` | functions, classes, methods, variables, imports, exports, `require()` calls, calls, common HTTP routes |
-| Python | `.py` | `python-light`; optional `tree-sitter-python` | functions, classes, `import`, `from ... import` |
-| Go | `.go` | `go-light`; optional `tree-sitter-go` | functions, methods, types, consts, vars, single imports, import blocks |
-| Rust | `.rs` | inventory-only by default; optional `tree-sitter-rust` | functions, structs, enums, traits, impls, `use` imports |
-| Java | `.java` | inventory-only by default; optional `tree-sitter-java` | classes, interfaces, enums, methods, imports |
-| PHP | `.php` | inventory-only by default; optional `tree-sitter-php` | functions, classes, interfaces, traits, methods, namespace uses |
-| Kotlin | `.kt`, `.kts` | inventory-only by default; optional `tree-sitter-kotlin` | functions, classes, objects, imports |
-| Swift | `.swift` | inventory-only by default; optional `tree-sitter-swift` | functions, classes, structs, protocols, enums, imports |
-| C | `.c`, `.h` | inventory-only by default; optional `tree-sitter-c` | functions, structs, enums, includes |
-| C++ | `.cc`, `.cpp`, `.cxx`, `.hpp`, `.hh`, `.hxx` | inventory-only by default; optional `tree-sitter-cpp` | functions, classes/structs, namespaces, enums, includes/usings |
-| C# | `.cs` | inventory-only by default; optional `tree-sitter-csharp` | classes, interfaces, structs, enums, methods, usings |
+| Language | Extensions | Default extraction | Tree-sitter extraction | Indexed evidence |
+| --- | --- | --- | --- | --- |
+| TypeScript | `.ts`, `.tsx`, `.cts`, `.mts` | `typescript-ast` | `tree-sitter-typescript`, `tree-sitter-tsx` | functions, classes, methods, variables, interfaces, types, enums, imports, exports, calls, common HTTP routes |
+| JavaScript | `.js`, `.jsx`, `.cjs`, `.mjs` | `typescript-ast` | `tree-sitter-javascript` | functions, classes, methods, variables, imports, exports, `require()` calls, calls, common HTTP routes |
+| Python | `.py` | `python-light` | `tree-sitter-python` | functions, classes, `import`, `from ... import` |
+| Go | `.go` | `go-light` | `tree-sitter-go` | functions, methods, types, consts, vars, single imports, import blocks |
+| Rust | `.rs` | inventory-only | `tree-sitter-rust` | functions, structs, enums, traits, impls, `use` imports |
+| Java | `.java` | inventory-only | `tree-sitter-java` | classes, interfaces, enums, methods, imports |
+| PHP | `.php` | inventory-only | `tree-sitter-php` | functions, classes, interfaces, traits, methods, namespace uses |
+| Kotlin | `.kt`, `.kts` | inventory-only | `tree-sitter-kotlin` | functions, classes, objects, imports |
+| Swift | `.swift` | inventory-only | `tree-sitter-swift` | functions, classes, structs, protocols, enums, imports |
+| C | `.c`, `.h` | inventory-only | `tree-sitter-c` | functions, structs, enums, includes |
+| C++ | `.cc`, `.cpp`, `.cxx`, `.hpp`, `.hh`, `.hxx` | inventory-only | `tree-sitter-cpp` | functions, classes/structs, namespaces, enums, includes/usings |
+| C# | `.cs` | inventory-only | `tree-sitter-csharp` | classes, interfaces, structs, enums, methods, usings |
 
-Config files (`.json`, `.yaml`, `.yml`, `.toml`, `.env.example`, `package.json`, `tsconfig.json`) are indexed separately as configuration evidence.
+Recognized but inventory-only extensions include `.rb`, `.vue`, and `.css`. Config files (`.json`, `.yaml`, `.yml`, `.toml`, `.env.example`, `package.json`, `tsconfig.json`, `Dockerfile`, and `Makefile`) are indexed as configuration or inventory evidence.
 
-## Policies And Side Effects
+## CLI Reference
 
-- In a git repository, bootstrap configures `git config core.hooksPath .githooks` by default when `core.hooksPath` is unset.
-- If another `core.hooksPath` already exists, bootstrap preserves it and reports the skipped git config change.
-- Use `--no-git-config` to install hook files without changing `core.hooksPath`.
-- Existing `AGENTS.md`, `CLAUDE.md`, and `wiki/AGENTS.md` files are preserved outside project-wiki marker blocks.
-- Generated operating documents are English by default. Project canonical wiki content should follow the user's instruction or the project's existing language.
+Use the local runner for agent execution:
 
-## Inspiration
+```bash
+$PROJECT_WIKI_BOOTSTRAP [init] [options]
+$PROJECT_WIKI_BOOTSTRAP install-skill [--scope user|project] [--agents codex|claude|both]
+```
 
-This project is inspired by Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern: keep a persistent markdown wiki close to the work instead of reconstructing project context from long chat history.
+Important options:
 
-Project Wiki Bootstrap adapts that idea into an installable bootstrap for Codex and Claude Code, with repo-local instructions, startup hooks, migration helpers, and optional code evidence.
+| Option | Purpose |
+| --- | --- |
+| `--migrate`, `--adopt-existing` | Preserve an existing wiki as `wiki_legacy*` and create migration inboxes. |
+| `--lint` | Validate generated setup without editing files. |
+| `--link-check` | Report broken wiki links, duplicate routes, and orphan pages. |
+| `--quality-check` | Report stale, conflicting, and low-quality wiki document signals. |
+| `--doctor` | Run lint, link-check, and quality-check together. |
+| `--doctor --fix` | Safely refresh generated index routing before diagnostics. |
+| `--query <terms>` | Search wiki paths, metadata, titles, and bodies. |
+| `--refresh-index` | Update generated auto-discovered wiki routing. |
+| `--capture-inbox --title <title> --content <content>` | Append a candidate note to the wiki inbox. |
+| `--issue-draft --issue-title <title>` | Print a read-only GitHub issue body draft for problems or side effects. |
+| `--issue-create --issue-title <title>` | Create a GitHub issue through `gh` after explicit user approval. |
+| `--glossary-init` | Create and route the optional glossary page. |
+| `--prune-check` | Report active pages with stale or unresolved lifecycle signals. |
+| `--review-migration`, `--semantic-migrate` | Sync migration inbox statuses into migration review files. |
+| `--no-git-config` | Install hook files without changing `git core.hooksPath`. |
+| `--code-index` | Build the disposable code evidence index. |
+| `--code-report` | Print architecture and ownership summaries from the evidence index. |
+| `--code-report-section <section>` | Print one section: `coverage`, `ownership`, `languages`, `parsers`, `workspaces`, `workspace-graph`, `routes`, `hotspots`, `configs`, or `edges`. |
+| `--code-impact <term>` | Show file, symbol, route, import, edge, and owner impact evidence. |
+| `--code-search-symbol <term>` | Search indexed symbols. |
+| `--code-query <sql>` | Run conservative read-only SQL over the evidence index. |
 
 ## Development
 
-The source is TypeScript. The committed `dist/` directory is the compiled JavaScript used by the npm binary and skill installation.
-
-Repository layout:
-
-- `src/init-project-wiki.ts`: CLI entrypoint
-- `src/args.ts`: command-line argument parsing
-- `src/hooks.ts`: Codex, Claude Code, and git hook generation
-- `src/install-skill.ts`: user/project skill installer
-- `src/templates.ts`: generated instruction and wiki templates
-- `src/code-index.ts`: optional SQLite code evidence index orchestration
-- `src/code-index-db.ts`: SQLite runtime loading and database adapter types
-- `src/code-index-file-policy.ts`: indexed language, ignored directory, and sensitive config exclusion policy
-- `src/code-index-sql.ts`: read-only SQL guard for code evidence queries
-- `src/wiki-files.ts`: wiki file discovery and markdown helpers
-- `src/migration.ts`: existing wiki migration
-- `src/modes.ts`: lint, search, refresh, capture, and prune modes
-- `dist/`: compiled output
-
-Development commands:
+The source is TypeScript. The committed `dist/` directory is the compiled JavaScript used by the npm binary and installed skill copies.
 
 ```bash
 npm install
 npm run typecheck
 npm run build
 npm test
-npm run benchmark
-npm run benchmark:baseline
 npm pack --dry-run
 ```
 
-When editing TypeScript files under `src/`, rebuild before committing so `dist/` stays current.
+When editing TypeScript under `src/`, rebuild before committing so `dist/` stays current.
 
-`npm run benchmark` is a maintainer benchmark, not a public user workflow. Its default large-project suite covers docs-heavy wiki, monorepo wiki, scoped routing, default mixed-language code indexing, and optional Tree-sitter indexing across JS/TS/TSX/Python/Go/Rust/Java/PHP/Kotlin/Swift/C/C++/C# fixtures. It reports objective release metrics such as compact startup token savings, wiki read-time reduction, bootstrap/doctor/query timing, full and incremental code-index timing, code-index throughput, architecture report timing, Tree-sitter timing/profile coverage, and optional comparison against a saved baseline JSON. Use `npm run benchmark:baseline` when preparing release evidence; it writes a versioned JSON baseline and Markdown summary under `benchmarks/`. Smoke tests use `--quick` only to validate the benchmark report shape.
+Maintainer benchmark commands live in [benchmarks/README.md](benchmarks/README.md). They are for release evidence and public claim validation, not normal end-user setup.
+
+## Inspiration
+
+This project is inspired by Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern: keep persistent markdown context close to the work instead of reconstructing project state from long chat history.
+
+Project Wiki Bootstrap adapts that idea into an installable CLI and skill for Codex and Claude Code, with repo-local instructions, compact startup hooks, migration helpers, diagnostics, and optional code evidence.
 
 ## License
 

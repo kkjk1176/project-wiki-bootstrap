@@ -12,10 +12,11 @@ review_trigger: benchmark harness, release evidence, roadmap metric, or public c
 ## TL;DR
 
 - 성능/효과 측정은 end-user CLI workflow가 아니라 maintainer release evidence workflow다.
-- 목적은 프로젝트를 개발/업데이트하면서 사용자에게 “targeted context가 full wiki scan 대비 어느 정도 추정 토큰 입력을 피하는지”, “얼마나 빠르게 필요한 정보를 읽는지”, “이전 버전보다 얼마나 좋아졌는지”를 객관적 수치로 설명하는 것이다.
+- 목적은 프로젝트를 개발/업데이트하면서 사용자에게 “targeted retrieval 방식이 naive full-wiki scan 대비 어느 정도의 Markdown context 추정 입력량을 피하는지”, “얼마나 빠르게 필요한 정보를 읽는지”, “이전 버전보다 얼마나 좋아졌는지”를 객관적 수치로 설명하는 것이다. 이는 실제 LLM 토큰 사용량 측정이 아니다.
 - 측정 harness는 docs-heavy wiki, monorepo wiki, scoped-router wiki, code-heavy mixed JS/TS/TSX/Go/Python/Rust/Java/PHP/Kotlin/Swift/C/C++/C#/config index 시나리오와 optional Tree-sitter index 시나리오로 구성된 large-project benchmark suite를 만든다.
 - 명시적 `--sample-repo <path>`를 반복해서 주면 synthetic suite에 실제 로컬 repository 복사본 검증 시나리오들을 추가한다. 이 값들은 해당 repo들에 대한 관찰 근거이며 기본 synthetic release claim과 구분한다.
 - 개선 릴리스는 benchmark baseline과 current report의 delta를 함께 제시해야 한다.
+- Public README는 benchmark 명령 사용법을 사용자가 따라 할 workflow처럼 전면에 두지 말고, 최신 maintainer report의 결과값, 측정 조건, dirty/clean source-control boundary, claimable/unstable status를 먼저 보여줘야 한다. “estimated token avoidance” 표현은 실제 LLM token 사용량이 아니라 Markdown character 기반 context-size estimate임을 가까운 문맥에서 명시해야 한다.
 
 ## Current Benchmark Surface
 
@@ -108,20 +109,34 @@ Required release-evidence metrics:
 - Workspace graph summaries: implemented in `--code-report` and `--code-report-section workspace-graph`. Report workspace count, package managers, lockfiles, internal dependency edges, and external dependency hotspots before claiming monorepo dependency-graph support.
 - Monorepo-aware routing: report targeted context token size by scope and compare each scope against full wiki plus full repository wiki reads.
 
-## Previous Local Large Benchmark
+## Current Local Large Benchmark
 
-- This is a pre-schema-v9 local evidence snapshot retained only as historical context. Regenerate a clean large benchmark with schema v9 before making current public release claims.
-- Observed on 2026-06-09 with Node v22.19.0/V8 12.4.254.21-node.29 on darwin arm64, Apple M4 Pro, 14 CPUs, 24,576MB memory.
-- Source-control fingerprint in the local generated file: commit `e2b4554ad07b`, branch `main`, `dirty: true` because the benchmark improvements were still uncommitted when the local evidence was generated.
-- Large assumptions: 500 varied docs-heavy wiki pages, 40 monorepo workspaces across apps/packages/services/libs, 1,416 mixed code fixture files, and the 2 repo-local standard sample repositories.
-- Benchmark schema: v5 with 1 discarded warmup run and 5 repeated measured runs; timing status was `stable` with no `measurement.unstable_metrics`.
-- Claimable metrics in that run: 12/12 claim metrics, covering docs, monorepo, full code index, incremental code index, architecture report, and both standard sample repos.
-- Targeted-context estimated-token avoidance: minimum 99.67%, median 99.76%.
-- Read-time reduction: minimum 99.45%, median 99.55%.
-- Full code index: 1,416 files at 4,700.84 files/sec, 301.223ms median.
-- Incremental code index: 2 reindexed files, 1 deleted file, 159.529ms, 47.22% less wall-clock time than the full code-index run in the same fixture.
-- Architecture/ownership report: 208.456ms, 7 sections, 6 populated evidence tables, 24 routes, 48 dependency hotspot entries.
-- Standard sample repos: 2 repos, 8 indexed files total, median sample code-index time 119.921ms, median sample architecture report time 120.462ms, 2 total routes, 2 dependency hotspot entries.
-- Sample profiles: `01-web-service:web-routes+package-dependencies+config-bearing+symbol-bearing+mixed-language` and `02-python-cli:config-bearing+symbol-bearing+mixed-language+library-or-tooling`.
-- Trend mode was validated with two quick reports and emitted direction-aware metrics for targeted-context estimated-token avoidance, code index time, throughput, incremental index time, architecture report time, and sample repo timings while excluding incompatible reports from metric deltas and marking single-compatible-point metrics as `n/a`.
-- Release claims from the updated harness require `measurement.timing_status: stable`, an empty `measurement.unstable_metrics`, and `comparison.regression_status: passed` when a baseline is supplied.
+- Latest local report: `benchmarks/reports/current-large.json` and `benchmarks/reports/current-large.md`, generated 2026-06-09T07:38:25.482Z.
+- Observed with Node v22.19.0/V8 12.4.254.21-node.29 on darwin arm64, Apple M4 Pro, 14 CPUs, 24,576MB memory.
+- Source-control fingerprint in the local generated file: commit `b55fdce781e1`, branch `main`, `dirty: true`, 8 status entries. This is current implementation evidence for README updates, not a clean release-gate baseline.
+- Large assumptions: 500 varied docs-heavy wiki pages, 40 monorepo workspaces across apps/packages/services/libs, 720 scoped-router pages, 1,608 mixed code fixture files, and 3 repo-local standard sample repositories.
+- Benchmark schema: v9 with 1 discarded warmup run and 5 repeated measured runs; timing status was `variable`.
+- Claimable metrics in that run: 18. Unstable metrics: `monorepo.doctor_ms`, `monorepo.query_ms`, and `code.tree_sitter_architecture_report_ms`.
+- Targeted retrieval vs naive full-wiki scan Markdown context-size estimate avoidance: minimum 99.43%, median 99.61%.
+- Read-time reduction: minimum 99.23%, median 99.49%.
+- Retrieval correctness: 4/4 passed; targeted-context missing evidence files: 0.
+- Scoped router: 720 pages, 13 generated routers, 67.701ms refresh-index time, 4,197-char main index.
+- Full code index: 1,608 files at 4,832.06 files/sec, 332.777ms median.
+- Incremental code index: 2 reindexed files, 186.54ms, 42.15% less wall-clock time than the full code-index run in the same fixture.
+- Architecture/ownership report: 252.961ms, 10 sections, 6 populated evidence tables, 24 routes, 48 dependency hotspot entries.
+- Tree-sitter code index: 1,608 files, 650.093ms, 14 parser profiles. Tree-sitter architecture report timing was unstable and should not be used as a release claim without rerun.
+- Standard sample repos: 3 repos, 16 indexed files total, median sample code-index time 136.106ms, median sample architecture report time 135.797ms, 4 total routes, 5 dependency hotspot entries.
+- Sample profiles: `01-web-service:web-routes+package-dependencies+config-bearing+symbol-bearing+mixed-language`, `02-python-cli:config-bearing+symbol-bearing+mixed-language+library-or-tooling`, and `03-mixed-monorepo:web-routes+package-dependencies+config-bearing+symbol-bearing+monorepo-shaped+mixed-language`.
+- Release claims from the current harness require `measurement.timing_status: stable`, an empty `measurement.unstable_metrics`, and `comparison.regression_status: passed` when a baseline is supplied.
+
+## Historical Local Large Benchmark
+
+- The older `benchmarks/reports/0.1.2-large.json` snapshot used pre-schema-v9 evidence and should not be reused for current README or release claims.
+- Retain that snapshot only as historical context. Public README benchmark values should use the current local large report or a clean release baseline generated after it.
+
+## README Presentation Policy
+
+- Public README benchmark content should be phrased as observed maintainer evidence, not as a user instruction to run benchmark commands.
+- If the latest available report has `source_control.dirty: true`, disclose it as local validation evidence and avoid presenting it as clean release-gate evidence.
+- User-facing benchmark summaries should include the main values readers need before methodology details: Markdown context-size estimate avoidance from targeted retrieval vs naive full-wiki scan, read-time reduction, measured wiki page count, code-index files/time/throughput, incremental update time/reduction, architecture report time/evidence, run count, warmup count, timing status, and unstable metric status.
+- Benchmark command examples belong in maintainer/development sections or `benchmarks/README.md`, not in the primary product value section.

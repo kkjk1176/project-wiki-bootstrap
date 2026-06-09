@@ -3,254 +3,210 @@
 [![npm version](https://img.shields.io/npm/v/project-wiki-bootstrap.svg?cacheSeconds=300)](https://www.npmjs.com/package/project-wiki-bootstrap)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.13-brightgreen.svg)](https://nodejs.org/)
-[![Code evidence index](https://img.shields.io/badge/code%20evidence-node%3Asqlite-blue.svg)](https://nodejs.org/api/sqlite.html)
+[![コード根拠インデックス](https://img.shields.io/badge/code%20evidence-node%3Asqlite-blue.svg)](https://nodejs.org/api/sqlite.html)
 
-小さなリポジトリから大規模プロジェクトやモノレポまで、人間と LLM コーディングエージェントが使う token-efficient なプロジェクト計画 wiki を作成します。
+Codex と Claude Code のための簡潔なプロジェクトメモリとコード根拠。
+
+Project Wiki Bootstrap は、リポジトリローカルの計画 wiki、簡潔な起動 hook、任意の SQLite コード根拠 index を作成します。エージェントはプロジェクト計画から開始し、必要な文書へルーティングされ、リポジトリ全体を繰り返しスキャンせずにコードに基づく根拠を確認できます。
 
 言語: [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh.md)
 
-生成される wiki は、起動コンテキストを小さく保ちます。
+## 存在理由
 
-- `wiki/startup.md`: 現在のプロジェクト要約
-- `wiki/index.md`: 次に読む詳細ページのルーター
-- `wiki/canonical/`、`wiki/decisions/`、`wiki/sources/`、`wiki/meta/`: 必要なときだけ読む詳細コンテキスト
+LLM コーディングエージェントは、セッションごとにプロジェクトを再発見するためにコンテキストとツール呼び出しを消費しがちです。古い会話の読み取り、Markdown のスキャン、ソース検索、関連ファイルの推測が繰り返されます。
 
-## 得られるもの
+Project Wiki Bootstrap はエージェントに 2 つのローカル正本を提供します。
 
-Project Wiki Bootstrap は、コーディングエージェントが予測可能に読める、リポジトリローカルの計画メモリを作ります。
+| 表面 | エージェントが得るもの |
+| --- | --- |
+| `wiki/startup.md` + `wiki/index.md` | 短いセッション開始要約とルーター。必要な計画ページだけを読みます。 |
+| `wiki/canonical/` および `wiki/decisions/` | 現在のプロジェクト事実、制約、リスク、パッケージ契約、CLI 動作、持続的な意思決定。 |
+| `.codex/` および `.claude/` hook | 全 wiki をロードしない Codex/Claude Code 起動コンテキスト。 |
+| `.project-wiki/code-evidence.sqlite` | ファイル、シンボル、import、route、所有者、ワークスペースグラフ、レポート、影響確認のための再生成可能なコード根拠。 |
+| 診断とマイグレーションモード | リンク確認、品質確認、マイグレーション受信箱、古い信号のレポート、作業フローの問題発見時の issue draft。 |
 
-主な機能:
+重要なのは「文書を増やすこと」ではありません。最初のエージェント読み取り量を小さく保ち、より深いプロジェクト正本とコード根拠への信頼できる経路を与えることです。
 
-- Codex と Claude Code 用の wiki-first プロジェクト指示
-- compact な起動コンテキストだけを読み込む session-start hook
-- 現在のプロジェクト事実、前提、リスク、意思決定、source を置く canonical 文書
-- 壊れたリンク、重複 route、orphan page、stale signal、品質 gap を見つける wiki diagnostics
-- 既存 markdown 文書を移行するための migration support
-- 大きなリポジトリでコード根拠に基づく wiki 更新を助ける任意の code evidence index
+## ベンチマーク結果
 
-これにより、同じコンテキストを繰り返し集め直す作業を減らせます。エージェントは現在のプロジェクト意図から開始し、必要なときだけ詳細文書を読み、人間がレビューできるファイルにプロジェクトの意思決定を残せます。
+ベンチマークはメンテナー向けリリース根拠であり、公開ユーザー向け作業フローではありません。README とリリースノートが曖昧な性能表現ではなく、境界付きの数値で説明できるようにする根拠です。
 
-## Quick Start
+最新ローカル大規模レポート: `benchmarks/reports/current-large.json`、2026-06-09T07:38:25.482Z 生成、Node v22.19.0、darwin arm64、Apple M4 Pro、測定実行 5 回と破棄したウォームアップ実行 1 回。時間測定状態は `variable`、不安定な測定値は `monorepo.doctor_ms`、`monorepo.query_ms`、`code.tree_sitter_architecture_report_ms` です。git 状態の指紋が dirty だったため、クリーンなリリースゲート基準値ではなくローカル検証値として扱ってください。
 
-### 1. Skill をインストール
+| 項目 | 結果 |
+| --- | ---: |
+| Markdown コンテキスト推定回避量の中央値 | 99.61% |
+| Markdown コンテキスト推定回避量の最小値 | 99.43% |
+| 読み取り時間削減の中央値 | 99.49% |
+| 読み取り時間削減の最小値 | 99.23% |
+| 測定した wiki ページ | 1,601 |
+| コード index ファイル | 1,608 |
+| コード index 時間 | 332.777ms |
+| コード index スループット | 4,832.06 files/sec |
+| 増分 index 時間 | 186.54ms |
+| 全体に対する増分時間削減 | 42.15% |
+| アーキテクチャレポート時間 | 252.961ms |
+| アーキテクチャレポート根拠テーブル | 6 |
+| アーキテクチャレポート route | 24 |
+| サンプルリポジトリ | 3 |
+| ベンチマーク実行 | 5 |
+| ウォームアップ実行 | 1 |
+| 時間測定状態 | variable |
+| 不安定な測定値 | 3 |
 
-Codex と Claude Code 用の skill を一度インストールします。
+シナリオ要約:
+
+| シナリオ | 規模 | 結果 |
+| --- | ---: | --- |
+| 文書の多い wiki | 500ページ | 99.74% Markdown コンテキスト推定回避、99.49% 読み取り削減、43.423ms query |
+| モノレポ wiki | 320ページ | 99.43% Markdown コンテキスト推定回避、99.23% 読み取り削減、83.149ms doctor(不安定) |
+| スコープ別ルーター wiki | 720ページ | 99.61% Markdown コンテキスト推定回避、99.54% 読み取り削減、67.701ms refresh |
+| コードの多い混合 index | 1,608ファイル | 332.777ms full index、186.54ms incremental、252.961ms report、650.093ms Tree-sitter index |
+| サンプルリポジトリ検証 | 3リポジトリ、16ファイル | 136.106ms コード index 中央値、135.797ms アーキテクチャレポート中央値 |
+
+主張範囲: トークン推定値は `ceil(characters / 4)` による Markdown コンテキストサイズ推定です。モデル tokenizer 出力や API 課金カウンターではなく、実際の LLM トークン使用量を測定していません。ベンチマークは、targeted retrieval で読む wiki コンテキストが、fixture の全 wiki Markdown ファイルを読む naive full-wiki scan に比べてどれだけ Markdown コンテキスト入力を避けるかを比較します。コード index 測定値は生成/サンプルリポジトリで測定したローカル CLI 子プロセス時間です。不安定と表示された測定値はリリース主張に使う前に再実行してください。
+
+## インストール
+
+初期 skill install にだけ `npx` を使います。
 
 ```bash
 npx project-wiki-bootstrap install-skill --scope user --agents both
 ```
 
-現在のリポジトリ内にインストールする場合は `--scope project` を使います。
+現在のリポジトリにインストール:
 
 ```bash
 npx project-wiki-bootstrap install-skill --scope project --agents both
 ```
 
-`install-skill` は `.codex/skills/` および/または `.claude/skills/` の下に再利用可能な skill ファイルだけをインストールします。`AGENTS.md`、`CLAUDE.md`、`wiki/`、`.codex/hooks.json`、`.claude/settings.json` は作成または更新しません。
-
-インストールオプション:
+`install-skill` は再利用可能な skill ファイルだけをコピーします。`AGENTS.md`、`CLAUDE.md`、`wiki/`、`.codex/hooks.json`、`.claude/settings.json` は作成または更新しません。
 
 | 状況 | コマンド |
 | --- | --- |
 | Codex と Claude Code にグローバルインストール | `npx project-wiki-bootstrap install-skill --scope user --agents both` |
-| 現在のリポジトリの Codex と Claude Code にインストール | `npx project-wiki-bootstrap install-skill --scope project --agents both` |
-| 1 つのエージェントだけにインストール | `npx project-wiki-bootstrap install-skill --agents codex` または `--agents claude` |
+| 現在のリポジトリにインストール | `npx project-wiki-bootstrap install-skill --scope project --agents both` |
+| Codex のみ | `npx project-wiki-bootstrap install-skill --agents codex` |
+| Claude Code のみ | `npx project-wiki-bootstrap install-skill --agents claude` |
+| インストール結果をプレビュー | `npx project-wiki-bootstrap install-skill --scope project --agents both --dry-run` |
 
-### エージェントセッションのローカル Runner
+## エージェント実行経路
 
-skill のインストール後、Codex と Claude Code は npm からパッケージを再取得せず、インストール済みのローカルコピーを実行するべきです。これにより、制限されたエージェント環境での network failure や未固定の公開パッケージ実行のブロックを避けられます。
+インストール後、エージェントは `npx` ではなく、インストール済みのローカルコピーを `node` で実行してください。これにより、制限されたエージェント環境でネットワークアクセスと固定されていないパッケージ実行を避けられます。
 
-よく使うローカル runner:
-
-| インストール先 | Runner |
+| インストール先 | 実行経路 |
 | --- | --- |
-| Project-scoped Codex skill | `node .codex/skills/project-wiki-bootstrap/dist/init-project-wiki.js` |
-| Project-scoped Claude skill | `node .claude/skills/project-wiki-bootstrap/dist/init-project-wiki.js` |
-| User-scoped Codex skill | `node ~/.codex/skills/project-wiki-bootstrap/dist/init-project-wiki.js` |
-| User-scoped Claude skill | `node ~/.claude/skills/project-wiki-bootstrap/dist/init-project-wiki.js` |
+| プロジェクト範囲 Codex skill | `node .codex/skills/project-wiki-bootstrap/dist/init-project-wiki.js` |
+| プロジェクト範囲 Claude skill | `node .claude/skills/project-wiki-bootstrap/dist/init-project-wiki.js` |
+| ユーザー範囲 Codex skill | `node ~/.codex/skills/project-wiki-bootstrap/dist/init-project-wiki.js` |
+| ユーザー範囲 Claude skill | `node ~/.claude/skills/project-wiki-bootstrap/dist/init-project-wiki.js` |
 
-直接 shell で実行するユーザーは、registry access が利用できる場合に `npx project-wiki-bootstrap ...` を引き続き使えます。インストール済み skill を使うエージェントはローカル runner を優先し、失敗した場合は生成ファイルを手作業で再構成する fallback ではなく、実際のエラーを報告してください。
-
-### 2. Project Wiki を作成、更新、保守
-
-skill のインストール後、対象プロジェクトのルートで wiki コマンドを実行します。
+以下の例では次を使います。
 
 ```bash
-npx project-wiki-bootstrap
+PROJECT_WIKI_BOOTSTRAP="node .codex/skills/project-wiki-bootstrap/dist/init-project-wiki.js"
 ```
 
-Wiki コマンド:
+インストール先に合うローカル実行経路を使ってください。
 
-| 状況 | コマンド |
-| --- | --- |
-| wiki の作成または更新 | `npx project-wiki-bootstrap` |
-| 既存 docs/wiki の移行 | `npx project-wiki-bootstrap --migrate` |
-| リンクと文書品質をチェック | `npx project-wiki-bootstrap --doctor` |
-| 安全な routing 更新後にチェック | `npx project-wiki-bootstrap --doctor --fix` |
-| git 設定を変更せず hook ファイルだけをインストール | `npx project-wiki-bootstrap --no-git-config` |
+## 一般的なエージェント作業
 
-## Skill Actions
+プロジェクトルートで wiki を作成または更新します。
 
-インストール後、Codex または Claude Code に次の作業を依頼できます。
-
-- プロジェクト wiki の作成、更新、検証
-- wiki リンク、重複 route、orphan page、文書品質のチェック
-- wiki ページの検索
-- `wiki/index.md` の更新
-- 候補メモを `wiki/inbox/project-candidates.md` に保存
-- stale または undecided 状態の wiki ページの報告
-- skill 使用中に見つかった問題や副作用の GitHub issue body ドラフトを作成
-- `wiki/canonical/glossary.md` の作成
-- 既存 markdown 文書の review 用 inbox への移行
-- コードを分析し、根拠のあるプロジェクト情報を wiki に反映
-
-例:
-
-```text
-Apply project-wiki-bootstrap to this project.
-Validate the project wiki setup.
-Search the project wiki for authentication decisions.
-Analyze apps/web and packages/api, then update the wiki from the code.
-Review the migrated wiki inbox.
+```bash
+$PROJECT_WIKI_BOOTSTRAP
 ```
 
-Claude Code では `/project-wiki-bootstrap` も使えます。
+Wiki の検証と保守:
 
-## Wiki Diagnostics
-
-既存 wiki のレビューや整理に使います。
-
-| 目的 | コマンド |
+| 目的 | エージェントコマンド |
 | --- | --- |
-| 生成された setup を検証 | `npx project-wiki-bootstrap --lint` |
-| 壊れたリンク、重複 index route、orphan page をチェック | `npx project-wiki-bootstrap --link-check` |
-| stale page、unresolved signal、TL;DR 欠落、budget drift、evidence gap をチェック | `npx project-wiki-bootstrap --quality-check` |
-| setup、link、quality チェックをまとめて実行 | `npx project-wiki-bootstrap --doctor` |
-| 安全な routing fix の後に診断を実行 | `npx project-wiki-bootstrap --doctor --fix` |
+| wiki 作成または更新 | `$PROJECT_WIKI_BOOTSTRAP` |
+| 既存 docs/wiki のマイグレーション | `$PROJECT_WIKI_BOOTSTRAP --migrate` |
+| 生成された設定の検証 | `$PROJECT_WIKI_BOOTSTRAP --lint` |
+| リンクと文書品質の確認 | `$PROJECT_WIKI_BOOTSTRAP --doctor` |
+| 診断前に生成 routing を更新 | `$PROJECT_WIKI_BOOTSTRAP --doctor --fix` |
+| project wiki 検索 | `$PROJECT_WIKI_BOOTSTRAP --query "authentication decisions"` |
+| 候補メモの保存 | `$PROJECT_WIKI_BOOTSTRAP --capture-inbox --title "Candidate" --content "Details"` |
+| 古い、または未解決の wiki ページの報告 | `$PROJECT_WIKI_BOOTSTRAP --prune-check` |
+| git config を変えず hook ファイルをインストール | `$PROJECT_WIKI_BOOTSTRAP --no-git-config` |
 
-壊れたリンクは失敗として扱います。重複 route、orphan page、品質項目は、merge、routing、更新、rewrite の判断材料として warning で報告します。
+コード根拠:
 
-問題や副作用の GitHub issue body ドラフトを作るには `npx project-wiki-bootstrap --issue-draft --issue-title "Report unexpected wiki hook behavior"` を使います。このコマンドは read-only で、再現手順、期待動作と実際の動作、影響を受けた生成ファイル、環境情報、添付すべき diagnostics のテンプレートを出力します。GitHub issue は作成せず network access も不要です。
+| 目的 | エージェントコマンド |
+| --- | --- |
+| 既定の根拠 cache 作成 | `$PROJECT_WIKI_BOOTSTRAP --code-index --code-scope src` |
+| 複数 scope の build | `$PROJECT_WIKI_BOOTSTRAP --code-index --code-scope src --code-scope packages/api` |
+| 増分更新を要求 | `$PROJECT_WIKI_BOOTSTRAP --code-index --incremental` |
+| full rebuild を強制 | `$PROJECT_WIKI_BOOTSTRAP --code-index --code-index-full` |
+| 任意の Tree-sitter backend を使用 | `$PROJECT_WIKI_BOOTSTRAP --code-index --code-parser tree-sitter` |
+| cache 状態を表示 | `$PROJECT_WIKI_BOOTSTRAP --code-status` |
+| index 済みファイル一覧 | `$PROJECT_WIKI_BOOTSTRAP --code-files` |
+| アーキテクチャ/所有者レポートを出力 | `$PROJECT_WIKI_BOOTSTRAP --code-report` |
+| レポート section だけ出力 | `$PROJECT_WIKI_BOOTSTRAP --code-report --code-report-section routes` |
+| 影響根拠を確認 | `$PROJECT_WIKI_BOOTSTRAP --code-impact healthHandler` |
+| index 済みシンボルを検索 | `$PROJECT_WIKI_BOOTSTRAP --code-search-symbol Auth` |
+| 保守的な読み取り専用 SQL を実行 | `$PROJECT_WIKI_BOOTSTRAP --code-query "select path from files order by path"` |
 
-GitHub repository でユーザーが明示的に許可した場合は、GitHub CLI で実際の issue を作成できます: `npx project-wiki-bootstrap --issue-create --issue-title "Report unexpected wiki hook behavior"`。このコマンドは `gh auth status` の後に `gh issue create --title ... --body-file ...` を呼び出します。認証済みの `gh`、GitHub remote、network access が必要です。失敗した場合は draft に silently fallback せず、実際の error を報告します。
-
-この skill を使う LLM が project-wiki-bootstrap の bug、regression、workflow mismatch、紛らわしい生成挙動、意図しない side effect を見つけた場合、ユーザーが issue draft を不要だと明示していない限り、LLM は作業を終える前に read-only issue draft を実行します。これはローカル修正の代替ではありません。
+コード根拠モードは一度に 1 つだけ実行できます。`--incremental`、`--code-index-full`、`--code-parser` は `--code-index` と一緒に使う場合のみ有効です。
 
 ## インストールされるファイル
-
-プロジェクト指示ファイル:
 
 - `AGENTS.md`
 - `CLAUDE.md`
 - `wiki/AGENTS.md`
-
-起動 hook:
-
 - `.codex/hooks.json`
 - `.codex/hooks/wiki-session-start.js`
 - `.claude/settings.json`
 - `.claude/hooks/wiki-session-start.js`
-
-任意の git hook ファイル:
-
 - `.githooks/prepare-commit-msg`
 - `.githooks/wiki-commit-trailers.js`
+- `wiki/canonical/`, `wiki/decisions/`, `wiki/inbox/`, `wiki/meta/`, `wiki/sources/`, `wiki/migration/`
+- 破棄可能なコード根拠 cache としての `.project-wiki/code-evidence.sqlite`
 
-wiki ディレクトリ:
+## 仕組み
 
-- `wiki/canonical/`
-- `wiki/decisions/`
-- `wiki/meta/`
-- `wiki/sources/`
-- `wiki/inbox/`
-- `wiki/migration/`
+1. Bootstrap は保存優先の wiki 構造と、marker で境界付けられたエージェント指示 section を作成します。
+2. セッション開始 hook は文字数予算付きの `wiki/startup.md` と `wiki/index.md` だけを注入します。
+3. 詳細な計画正本は canonical、decision、source、meta page にあり、エージェントが必要なときに読みます。
+4. `--refresh-index` は新しい wiki page をルーティングし、route が多い場合は `wiki/indexes/auto-*.md` スコープ別ルーターに分割します。
+5. `--code-index` は `.project-wiki/` 配下に破棄可能な SQLite 根拠 cache を作ります。
+6. `--code-report`、`--code-impact`、`--code-search-symbol`、`--code-query` が計画更新用のコード根拠を提供します。
+7. 診断は壊れたリンク、重複 route、orphan page、古いページ、欠落した TL;DR、根拠 gap、マイグレーションコピーリスクを報告します。
 
-## Code Evidence Index
+マイグレーションはレビュー優先です。`--migrate` は既存 `wiki/` を `wiki_legacy*` として保存し、migration inbox を作成し、legacy Markdown を新しい canonical truth に直接コピーしません。
 
-大きなリポジトリでは、破棄可能な SQLite evidence cache を作成できます。
+## 言語サポート表
+
+| 言語 | 拡張子 | 既定の抽出 | Tree-sitter 抽出 | index される根拠 |
+| --- | --- | --- | --- | --- |
+| TypeScript | `.ts`, `.tsx`, `.cts`, `.mts` | `typescript-ast` | `tree-sitter-typescript`, `tree-sitter-tsx` | 関数、クラス、メソッド、変数、interface、type、enum、import、export、呼び出し、一般的な HTTP route |
+| JavaScript | `.js`, `.jsx`, `.cjs`, `.mjs` | `typescript-ast` | `tree-sitter-javascript` | 関数、クラス、メソッド、変数、import、export、`require()` 呼び出し、一般的な HTTP route |
+| Python | `.py` | `python-light` | `tree-sitter-python` | 関数、クラス、`import`、`from ... import` |
+| Go | `.go` | `go-light` | `tree-sitter-go` | 関数、メソッド、型、const、var、単一 import、import block |
+| Rust | `.rs` | 一覧のみ | `tree-sitter-rust` | 関数、struct、enum、trait、impl、`use` import |
+| Java | `.java` | 一覧のみ | `tree-sitter-java` | クラス、interface、enum、メソッド、import |
+| PHP | `.php` | 一覧のみ | `tree-sitter-php` | 関数、クラス、interface、trait、メソッド、namespace use |
+| Kotlin | `.kt`, `.kts` | 一覧のみ | `tree-sitter-kotlin` | 関数、クラス、object、import |
+| Swift | `.swift` | 一覧のみ | `tree-sitter-swift` | 関数、クラス、struct、protocol、enum、import |
+| C | `.c`, `.h` | 一覧のみ | `tree-sitter-c` | 関数、struct、enum、include |
+| C++ | `.cc`, `.cpp`, `.cxx`, `.hpp`, `.hh`, `.hxx` | 一覧のみ | `tree-sitter-cpp` | 関数、class/struct、namespace、enum、include/using |
+| C# | `.cs` | 一覧のみ | `tree-sitter-csharp` | class、interface、struct、enum、メソッド、using |
+
+`.rb`、`.vue`、`.css` は認識されますが一覧のみです。設定ファイルは設定根拠または一覧根拠として index されます。
+
+## CLI リファレンス
+
+エージェント実行にはローカル実行経路を使います。
 
 ```bash
-npx project-wiki-bootstrap --code-index --code-scope src
+$PROJECT_WIKI_BOOTSTRAP [init] [options]
+$PROJECT_WIKI_BOOTSTRAP install-skill [--scope user|project] [--agents codex|claude|both]
 ```
 
-cache は `.project-wiki/` 配下に作成され、必要に応じて再生成できます。これは wiki 更新のための根拠であり、canonical wiki content ではありません。`.env.example` 以外の `.env*` ファイルと、secret、credential、token、private、key 系の語を含む明らかに機密性の高い config ファイル名は既定で除外されます。
+重要なオプション: `--migrate`, `--lint`, `--link-check`, `--quality-check`, `--doctor`, `--doctor --fix`, `--query`, `--refresh-index`, `--capture-inbox`, `--issue-draft`, `--issue-create`, `--glossary-init`, `--prune-check`, `--review-migration`, `--no-git-config`, `--code-index`, `--code-report`, `--code-impact`, `--code-search-symbol`, `--code-query`.
 
-便利なコマンド:
-
-| 目的 | コマンド |
-| --- | --- |
-| cache の作成または更新 | `npx project-wiki-bootstrap --code-index --code-scope src` |
-| optional Tree-sitter parser backend で cache を作成 | `npx project-wiki-bootstrap --code-index --code-parser tree-sitter --code-scope src` |
-| 増分 cache 更新を必須にする | `npx project-wiki-bootstrap --code-index --incremental --code-scope src` |
-| cache の full rebuild を強制 | `npx project-wiki-bootstrap --code-index --code-index-full --code-scope src` |
-| 集計の表示 | `npx project-wiki-bootstrap --code-status` |
-| indexed file の一覧 | `npx project-wiki-bootstrap --code-files` |
-| architecture/ownership/parser backend/routes/dependencies/evidence coverage の要約 | `npx project-wiki-bootstrap --code-report` |
-| 必要な report section だけを出力 | `npx project-wiki-bootstrap --code-report --code-report-section routes` |
-| workspace と CODEOWNERS signal の確認 | `npx project-wiki-bootstrap --code-report --code-report-section workspaces` |
-| workspace package manager, lockfile, internal dependency graph signal の確認 | `npx project-wiki-bootstrap --code-report --code-report-section workspace-graph` |
-| file/symbol/route/module の impact evidence を確認 | `npx project-wiki-bootstrap --code-impact healthHandler` |
-| symbol 検索 | `npx project-wiki-bootstrap --code-search-symbol Auth` |
-| read-only SQL の実行 | `npx project-wiki-bootstrap --code-query "select path from files order by path"` |
-
-Project Wiki Bootstrap package 全体には Node 22.13+ が必要です。CLI には `node:sqlite` に基づく code evidence indexing が含まれています。この API は Node 22.5.0 で追加され、Node 22.13.0 から `--experimental-sqlite` なしで使えるようになりました。最小 version を 22.13+ にそろえることで、bootstrap、diagnostics、installed skill runner、code evidence commands を feature ごとの runtime 分岐なしで同じ supported runtime 上に置けます。`--code-parser tree-sitter` は optional `@sengac/tree-sitter*` packages を使い、それらが未インストールの場合は package error で失敗します。
-
-## Language Support Matrix
-
-この matrix には symbol/import extraction が実装されている言語だけを含めます。その他の認識済み拡張子は inventory-only であり、言語サポートとは見なしません。default mode は `typescript-ast`, `python-light`, `go-light` を使い、`--code-parser tree-sitter` は対応 source file を `tree-sitter-*` profiles に切り替えます。Ruby は互換 grammar package を選ぶまで inventory-only です。構造 parser evidence はより強い根拠として扱い、lightweight row は canonical claim の前に source で確認してください。
-
-| 言語 | 拡張子 | Extraction profile | Indexed evidence |
-| --- | --- | --- | --- |
-| TypeScript | `.ts`, `.tsx`, `.cts`, `.mts` | `typescript-ast`; optional `tree-sitter-typescript` / `tree-sitter-tsx` | function, class, method, variable, interface, type, enum, import, export, call, common HTTP route |
-| JavaScript | `.js`, `.jsx`, `.cjs`, `.mjs` | `typescript-ast`; optional `tree-sitter-javascript` | function, class, method, variable, import, export, `require()` call, call, common HTTP route |
-| Python | `.py` | `python-light`; optional `tree-sitter-python` | function, class, `import`, `from ... import` |
-| Go | `.go` | `go-light`; optional `tree-sitter-go` | function, method, type, const, var, single import, import block |
-| Rust | `.rs` | default inventory-only; optional `tree-sitter-rust` | function, struct, enum, trait, impl, `use` import |
-| Java | `.java` | default inventory-only; optional `tree-sitter-java` | class, interface, enum, method, import |
-| PHP | `.php` | default inventory-only; optional `tree-sitter-php` | function, class, interface, trait, method, namespace use |
-| Kotlin | `.kt`, `.kts` | default inventory-only; optional `tree-sitter-kotlin` | function, class, object, import |
-| Swift | `.swift` | default inventory-only; optional `tree-sitter-swift` | function, class, struct, protocol, enum, import |
-| C | `.c`, `.h` | default inventory-only; optional `tree-sitter-c` | function, struct, enum, include |
-| C++ | `.cc`, `.cpp`, `.cxx`, `.hpp`, `.hh`, `.hxx` | default inventory-only; optional `tree-sitter-cpp` | function, class/struct, namespace, enum, include/using |
-| C# | `.cs` | default inventory-only; optional `tree-sitter-csharp` | class, interface, struct, enum, method, using |
-
-Config ファイル (`.json`, `.yaml`, `.yml`, `.toml`, `.env.example`, `package.json`, `tsconfig.json`) は、別の configuration evidence として indexed されます。
-
-## ポリシーと side effect
-
-- git リポジトリでは、`core.hooksPath` が未設定の場合にデフォルトで `git config core.hooksPath .githooks` を設定します。
-- 既存の `core.hooksPath` がある場合、bootstrap はその値を保持し、git config の変更をスキップしたことを報告します。
-- `--no-git-config` を使うと、`core.hooksPath` を変更せず hook ファイルだけをインストールします。
-- 既存の `AGENTS.md`、`CLAUDE.md`、`wiki/AGENTS.md` は project-wiki marker block の外側を保持します。
-- 生成される運用文書はデフォルトで英語です。プロジェクトの canonical wiki content はユーザー指示または既存のプロジェクト言語に従います。
-
-## Inspiration
-
-このプロジェクトは Andrej Karpathy の [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern に影響を受けています。長いチャット履歴からプロジェクトコンテキストを毎回再構築するのではなく、作業の近くに永続的な markdown wiki を置くという考え方です。
-
-Project Wiki Bootstrap はその考え方を、Codex と Claude Code でインストールして使える bootstrap に適用しています。リポジトリローカルの指示、起動 hook、migration helper、任意の code evidence を提供します。
-
-## Development
-
-ソースは TypeScript です。コミット済みの `dist/` ディレクトリは、npm binary と skill インストールで使われるコンパイル結果です。
-
-Repository layout:
-
-- `src/init-project-wiki.ts`: CLI entrypoint
-- `src/args.ts`: command-line argument parsing
-- `src/hooks.ts`: Codex、Claude Code、git hook 生成
-- `src/install-skill.ts`: user/project skill installer
-- `src/templates.ts`: 生成される instruction と wiki template
-- `src/code-index.ts`: 任意の SQLite code evidence index orchestration
-- `src/code-index-db.ts`: SQLite runtime loading と database adapter types
-- `src/code-index-file-policy.ts`: indexed language、ignored directory、sensitive config exclusion policy
-- `src/code-index-sql.ts`: code evidence query 用 read-only SQL guard
-- `src/wiki-files.ts`: wiki file discovery と markdown helper
-- `src/migration.ts`: 既存 wiki migration
-- `src/modes.ts`: lint、search、refresh、capture、prune mode
-- `dist/`: コンパイル結果
-
-Development commands:
+## 開発
 
 ```bash
 npm install
@@ -260,8 +216,12 @@ npm test
 npm pack --dry-run
 ```
 
-`src/` 配下の TypeScript を変更した場合は、コミット前に rebuild して `dist/` を合わせてください。
+メンテナー向けベンチマークコマンドは [benchmarks/README.md](benchmarks/README.md) にあります。これはリリース根拠と公開主張の検証用であり、通常のエンドユーザー設定ではありません。
 
-## License
+## 着想
+
+このプロジェクトは Andrej Karpathy の [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) パターンに影響を受けています。
+
+## ライセンス
 
 MIT
