@@ -176,7 +176,7 @@ Safety and runtime boundaries:
 - In git repositories, the indexer respects `.gitignore` through `git ls-files --cached --others --exclude-standard`.
 - `.env*` files are excluded from the index, except `.env.example`.
 - Obvious sensitive config filenames containing secret, credential, token, private, or key terms are excluded from the index.
-- Code evidence indexing requires a Node runtime that provides `node:sqlite`; recommend Node 22.13+ or Node 24+ for code evidence modes, and continue with normal repository inspection if unavailable.
+- Project Wiki Bootstrap requires Node 22.13+ for the installed runner because code evidence indexing uses stable `node:sqlite` without experimental flags; if the runtime is older, report the real runtime error instead of recreating output manually.
 - `--code-parser tree-sitter` requires the optional `@sengac/tree-sitter*` package family for JS/TS/TSX/Python/Go/Rust/Java/PHP/Kotlin/Swift/C/C++/C# extraction; if unavailable, report the package error instead of silently using the default backend.
 
 Scope selection is handled through the user's natural-language request:

@@ -1,10 +1,54 @@
+export interface ParsedArgs {
+  args: Set<string>;
+  captureCategory: string;
+  captureContent: string;
+  captureInboxMode: boolean;
+  captureTitle: string;
+  codeFilesMode: boolean;
+  codeImpactMode: boolean;
+  codeImpactTarget: string;
+  codeIndexFullMode: boolean;
+  codeIndexIncrementalMode: boolean;
+  codeIndexMode: boolean;
+  codeIndexOutput: string;
+  codeIndexScopes: string[];
+  codeParser: string;
+  codeParserMode: boolean;
+  codeQueryMode: boolean;
+  codeQuerySql: string;
+  codeReportMode: boolean;
+  codeReportSection: string;
+  codeSearchSymbol: string;
+  codeSearchSymbolMode: boolean;
+  codeStatusMode: boolean;
+  command: "init" | "install-skill";
+  commandArgs: string[];
+  doctorMode: boolean;
+  fixMode: boolean;
+  glossaryMode: boolean;
+  helpMode: boolean;
+  issueBodyFile: string;
+  issueCreateMode: boolean;
+  issueDraftMode: boolean;
+  issueDraftTitle: string;
+  linkCheckMode: boolean;
+  lintMode: boolean;
+  migrateMode: boolean;
+  missingValueOptions: string[];
+  noGitConfigMode: boolean;
+  pruneCheckMode: boolean;
+  qualityCheckMode: boolean;
+  queryTerm: string;
+  rawArgs: string[];
+  refreshIndexMode: boolean;
+  reviewMigrationMode: boolean;
+  unexpectedValueOptions: string[];
+  unknownCommand: string;
+  unknownOptions: string[];
+}
+
 export const rawArgs: string[] = process.argv.slice(2);
 const knownCommands: Set<string> = new Set(["init", "install-skill"]);
-export const helpMode = rawArgs.includes("--help") || rawArgs.includes("-h");
-export const unknownCommand = rawArgs[0] && !rawArgs[0].startsWith("-") && !knownCommands.has(rawArgs[0]) ? rawArgs[0] : "";
-export const command: "init" | "install-skill" = knownCommands.has(rawArgs[0] ?? "") ? rawArgs[0] as "init" | "install-skill" : "init";
-export const commandArgs: string[] = command === rawArgs[0] ? rawArgs.slice(1) : rawArgs;
-export const args: Set<string> = new Set(commandArgs);
 
 const flagsWithoutValues: Set<string> = new Set([
   "--adopt-existing",
@@ -69,12 +113,12 @@ function flagName(arg: string): string {
   return arg.startsWith("--") ? arg.split("=", 1)[0] ?? arg : arg;
 }
 
-function hasFlag(name: string): boolean {
+function hasFlagIn(commandArgs: string[], name: string): boolean {
   const prefix = `${name}=`;
   return commandArgs.some((arg) => arg === name || arg.startsWith(prefix));
 }
 
-function flagHasValue(name: string): boolean {
+function flagHasValue(commandArgs: string[], name: string): boolean {
   const prefix = `${name}=`;
   for (let index = 0; index < commandArgs.length; index += 1) {
     const arg = commandArgs[index];
@@ -88,42 +132,7 @@ function flagHasValue(name: string): boolean {
   return true;
 }
 
-export const unknownOptions: string[] = Array.from(new Set(commandArgs
-  .filter((arg) => arg.startsWith("-"))
-  .map(flagName)
-  .filter((arg) => !knownFlags.has(arg))));
-export const unexpectedValueOptions: string[] = Array.from(new Set(commandArgs
-  .filter((arg) => arg.startsWith("--") && arg.includes("="))
-  .map(flagName)
-  .filter((arg) => flagsWithoutValues.has(arg))));
-export const missingValueOptions: string[] = Array.from(flagsWithValues).filter((flag) => hasFlag(flag) && !flagHasValue(flag));
-
-export const migrateMode = args.has("--migrate") || args.has("--adopt-existing");
-export const lintMode = args.has("--lint");
-export const linkCheckMode = args.has("--link-check");
-export const qualityCheckMode = args.has("--quality-check");
-export const doctorMode = args.has("--doctor");
-export const fixMode = args.has("--fix");
-export const glossaryMode = args.has("--glossary-init");
-export const issueCreateMode = args.has("--issue-create");
-export const issueDraftMode = args.has("--issue-draft");
-export const refreshIndexMode = args.has("--refresh-index");
-export const captureInboxMode = args.has("--capture-inbox");
-export const pruneCheckMode = args.has("--prune-check");
-export const reviewMigrationMode = args.has("--review-migration") || args.has("--semantic-migrate");
-export const noGitConfigMode = args.has("--no-git-config");
-export const codeIndexMode = args.has("--code-index") || args.has("--code-evidence-index");
-export const codeIndexIncrementalMode = args.has("--incremental") || args.has("--code-incremental") || args.has("--code-index-incremental") || args.has("--code-evidence-index-incremental");
-export const codeIndexFullMode = args.has("--code-index-full") || args.has("--code-evidence-index-full");
-export const codeReportMode = args.has("--code-report") || args.has("--code-evidence-report");
-export const codeStatusMode = args.has("--code-status") || args.has("--code-evidence-status");
-export const codeFilesMode = args.has("--code-files") || args.has("--code-evidence-files");
-export const codeParserMode = hasFlag("--code-parser") || hasFlag("--code-evidence-parser");
-export const codeImpactMode = hasFlag("--code-impact") || hasFlag("--code-evidence-impact");
-export const codeQueryMode = hasFlag("--code-query") || hasFlag("--code-evidence-query");
-export const codeSearchSymbolMode = hasFlag("--code-search-symbol") || hasFlag("--code-evidence-symbol");
-
-export function argValue(name: string): string {
+function argValueFrom(commandArgs: string[], name: string): string {
   const prefix = `${name}=`;
   const inline = commandArgs.find((arg) => arg.startsWith(prefix));
   if (inline) return inline.slice(prefix.length);
@@ -135,7 +144,7 @@ export function argValue(name: string): string {
   return "";
 }
 
-export function argValues(name: string): string[] {
+function argValuesFrom(commandArgs: string[], name: string): string[] {
   const prefix = `${name}=`;
   const values: string[] = [];
   for (let index = 0; index < commandArgs.length; index += 1) {
@@ -151,16 +160,124 @@ export function argValues(name: string): string[] {
   return values.flatMap((value) => value.split(",").map((part) => part.trim()).filter(Boolean));
 }
 
-export const queryTerm = argValue("--query");
-export const codeImpactTarget = argValue("--code-impact") || argValue("--code-evidence-impact");
-export const codeQuerySql = argValue("--code-query") || argValue("--code-evidence-query");
-export const codeReportSection = argValue("--code-report-section") || argValue("--code-evidence-report-section");
-export const codeSearchSymbol = argValue("--code-search-symbol") || argValue("--code-evidence-symbol");
-export const codeIndexOutput = argValue("--code-index-out") || argValue("--code-evidence-out") || ".project-wiki/code-evidence.sqlite";
-export const codeParser = argValue("--code-parser") || argValue("--code-evidence-parser") || "default";
-export const codeIndexScopes = [...argValues("--code-scope"), ...argValues("--code-evidence-scope")];
-export const captureTitle = argValue("--title");
-export const captureContent = argValue("--content");
-export const captureCategory = argValue("--category") || "project-candidate";
-export const issueBodyFile = argValue("--issue-body-file");
-export const issueDraftTitle = argValue("--issue-title");
+export function parseArgs(argv: string[]): ParsedArgs {
+  const command: "init" | "install-skill" = knownCommands.has(argv[0] ?? "") ? argv[0] as "init" | "install-skill" : "init";
+  const commandArgs = command === argv[0] ? argv.slice(1) : argv;
+  const args = new Set(commandArgs);
+  const hasFlag = (name: string): boolean => hasFlagIn(commandArgs, name);
+  const argValue = (name: string): string => argValueFrom(commandArgs, name);
+  const argValues = (name: string): string[] => argValuesFrom(commandArgs, name);
+  const codeImpactTarget = argValue("--code-impact") || argValue("--code-evidence-impact");
+  const codeQuerySql = argValue("--code-query") || argValue("--code-evidence-query");
+  const codeSearchSymbol = argValue("--code-search-symbol") || argValue("--code-evidence-symbol");
+  return {
+    args,
+    captureCategory: argValue("--category") || "project-candidate",
+    captureContent: argValue("--content"),
+    captureInboxMode: args.has("--capture-inbox"),
+    captureTitle: argValue("--title"),
+    codeFilesMode: args.has("--code-files") || args.has("--code-evidence-files"),
+    codeImpactMode: hasFlag("--code-impact") || hasFlag("--code-evidence-impact"),
+    codeImpactTarget,
+    codeIndexFullMode: args.has("--code-index-full") || args.has("--code-evidence-index-full"),
+    codeIndexIncrementalMode: args.has("--incremental") || args.has("--code-incremental") || args.has("--code-index-incremental") || args.has("--code-evidence-index-incremental"),
+    codeIndexMode: args.has("--code-index") || args.has("--code-evidence-index"),
+    codeIndexOutput: argValue("--code-index-out") || argValue("--code-evidence-out") || ".project-wiki/code-evidence.sqlite",
+    codeIndexScopes: [...argValues("--code-scope"), ...argValues("--code-evidence-scope")],
+    codeParser: argValue("--code-parser") || argValue("--code-evidence-parser") || "default",
+    codeParserMode: hasFlag("--code-parser") || hasFlag("--code-evidence-parser"),
+    codeQueryMode: hasFlag("--code-query") || hasFlag("--code-evidence-query"),
+    codeQuerySql,
+    codeReportMode: args.has("--code-report") || args.has("--code-evidence-report"),
+    codeReportSection: argValue("--code-report-section") || argValue("--code-evidence-report-section"),
+    codeSearchSymbol,
+    codeSearchSymbolMode: hasFlag("--code-search-symbol") || hasFlag("--code-evidence-symbol"),
+    codeStatusMode: args.has("--code-status") || args.has("--code-evidence-status"),
+    command,
+    commandArgs,
+    doctorMode: args.has("--doctor"),
+    fixMode: args.has("--fix"),
+    glossaryMode: args.has("--glossary-init"),
+    helpMode: argv.includes("--help") || argv.includes("-h"),
+    issueBodyFile: argValue("--issue-body-file"),
+    issueCreateMode: args.has("--issue-create"),
+    issueDraftMode: args.has("--issue-draft"),
+    issueDraftTitle: argValue("--issue-title"),
+    linkCheckMode: args.has("--link-check"),
+    lintMode: args.has("--lint"),
+    migrateMode: args.has("--migrate") || args.has("--adopt-existing"),
+    missingValueOptions: Array.from(flagsWithValues).filter((flag) => hasFlag(flag) && !flagHasValue(commandArgs, flag)),
+    noGitConfigMode: args.has("--no-git-config"),
+    pruneCheckMode: args.has("--prune-check"),
+    qualityCheckMode: args.has("--quality-check"),
+    queryTerm: argValue("--query"),
+    rawArgs: argv,
+    refreshIndexMode: args.has("--refresh-index"),
+    reviewMigrationMode: args.has("--review-migration") || args.has("--semantic-migrate"),
+    unexpectedValueOptions: Array.from(new Set(commandArgs
+      .filter((arg) => arg.startsWith("--") && arg.includes("="))
+      .map(flagName)
+      .filter((arg) => flagsWithoutValues.has(arg)))),
+    unknownCommand: argv[0] && !argv[0].startsWith("-") && !knownCommands.has(argv[0]) ? argv[0] : "",
+    unknownOptions: Array.from(new Set(commandArgs
+      .filter((arg) => arg.startsWith("-"))
+      .map(flagName)
+      .filter((arg) => !knownFlags.has(arg)))),
+  };
+}
+
+export const parsedArgs: ParsedArgs = parseArgs(rawArgs);
+export const helpMode = parsedArgs.helpMode;
+export const unknownCommand = parsedArgs.unknownCommand;
+export const command = parsedArgs.command;
+export const commandArgs = parsedArgs.commandArgs;
+export const args = parsedArgs.args;
+export const unknownOptions = parsedArgs.unknownOptions;
+export const unexpectedValueOptions = parsedArgs.unexpectedValueOptions;
+export const missingValueOptions = parsedArgs.missingValueOptions;
+export const migrateMode = parsedArgs.migrateMode;
+export const lintMode = parsedArgs.lintMode;
+export const linkCheckMode = parsedArgs.linkCheckMode;
+export const qualityCheckMode = parsedArgs.qualityCheckMode;
+export const doctorMode = parsedArgs.doctorMode;
+export const fixMode = parsedArgs.fixMode;
+export const glossaryMode = parsedArgs.glossaryMode;
+export const issueCreateMode = parsedArgs.issueCreateMode;
+export const issueDraftMode = parsedArgs.issueDraftMode;
+export const refreshIndexMode = parsedArgs.refreshIndexMode;
+export const captureInboxMode = parsedArgs.captureInboxMode;
+export const pruneCheckMode = parsedArgs.pruneCheckMode;
+export const reviewMigrationMode = parsedArgs.reviewMigrationMode;
+export const noGitConfigMode = parsedArgs.noGitConfigMode;
+export const codeIndexMode = parsedArgs.codeIndexMode;
+export const codeIndexIncrementalMode = parsedArgs.codeIndexIncrementalMode;
+export const codeIndexFullMode = parsedArgs.codeIndexFullMode;
+export const codeReportMode = parsedArgs.codeReportMode;
+export const codeStatusMode = parsedArgs.codeStatusMode;
+export const codeFilesMode = parsedArgs.codeFilesMode;
+export const codeParserMode = parsedArgs.codeParserMode;
+export const codeImpactMode = parsedArgs.codeImpactMode;
+export const codeQueryMode = parsedArgs.codeQueryMode;
+export const codeSearchSymbolMode = parsedArgs.codeSearchSymbolMode;
+
+export function argValue(name: string): string {
+  return argValueFrom(commandArgs, name);
+}
+
+export function argValues(name: string): string[] {
+  return argValuesFrom(commandArgs, name);
+}
+
+export const queryTerm = parsedArgs.queryTerm;
+export const codeImpactTarget = parsedArgs.codeImpactTarget;
+export const codeQuerySql = parsedArgs.codeQuerySql;
+export const codeReportSection = parsedArgs.codeReportSection;
+export const codeSearchSymbol = parsedArgs.codeSearchSymbol;
+export const codeIndexOutput = parsedArgs.codeIndexOutput;
+export const codeParser = parsedArgs.codeParser;
+export const codeIndexScopes = parsedArgs.codeIndexScopes;
+export const captureTitle = parsedArgs.captureTitle;
+export const captureContent = parsedArgs.captureContent;
+export const captureCategory = parsedArgs.captureCategory;
+export const issueBodyFile = parsedArgs.issueBodyFile;
+export const issueDraftTitle = parsedArgs.issueDraftTitle;

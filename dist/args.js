@@ -1,15 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.issueDraftTitle = exports.issueBodyFile = exports.captureCategory = exports.captureContent = exports.captureTitle = exports.codeIndexScopes = exports.codeParser = exports.codeIndexOutput = exports.codeSearchSymbol = exports.codeReportSection = exports.codeQuerySql = exports.codeImpactTarget = exports.queryTerm = exports.codeSearchSymbolMode = exports.codeQueryMode = exports.codeImpactMode = exports.codeParserMode = exports.codeFilesMode = exports.codeStatusMode = exports.codeReportMode = exports.codeIndexFullMode = exports.codeIndexIncrementalMode = exports.codeIndexMode = exports.noGitConfigMode = exports.reviewMigrationMode = exports.pruneCheckMode = exports.captureInboxMode = exports.refreshIndexMode = exports.issueDraftMode = exports.issueCreateMode = exports.glossaryMode = exports.fixMode = exports.doctorMode = exports.qualityCheckMode = exports.linkCheckMode = exports.lintMode = exports.migrateMode = exports.missingValueOptions = exports.unexpectedValueOptions = exports.unknownOptions = exports.args = exports.commandArgs = exports.command = exports.unknownCommand = exports.helpMode = exports.rawArgs = void 0;
+exports.issueDraftTitle = exports.issueBodyFile = exports.captureCategory = exports.captureContent = exports.captureTitle = exports.codeIndexScopes = exports.codeParser = exports.codeIndexOutput = exports.codeSearchSymbol = exports.codeReportSection = exports.codeQuerySql = exports.codeImpactTarget = exports.queryTerm = exports.codeSearchSymbolMode = exports.codeQueryMode = exports.codeImpactMode = exports.codeParserMode = exports.codeFilesMode = exports.codeStatusMode = exports.codeReportMode = exports.codeIndexFullMode = exports.codeIndexIncrementalMode = exports.codeIndexMode = exports.noGitConfigMode = exports.reviewMigrationMode = exports.pruneCheckMode = exports.captureInboxMode = exports.refreshIndexMode = exports.issueDraftMode = exports.issueCreateMode = exports.glossaryMode = exports.fixMode = exports.doctorMode = exports.qualityCheckMode = exports.linkCheckMode = exports.lintMode = exports.migrateMode = exports.missingValueOptions = exports.unexpectedValueOptions = exports.unknownOptions = exports.args = exports.commandArgs = exports.command = exports.unknownCommand = exports.helpMode = exports.parsedArgs = exports.rawArgs = void 0;
+exports.parseArgs = parseArgs;
 exports.argValue = argValue;
 exports.argValues = argValues;
 exports.rawArgs = process.argv.slice(2);
 const knownCommands = new Set(["init", "install-skill"]);
-exports.helpMode = exports.rawArgs.includes("--help") || exports.rawArgs.includes("-h");
-exports.unknownCommand = exports.rawArgs[0] && !exports.rawArgs[0].startsWith("-") && !knownCommands.has(exports.rawArgs[0]) ? exports.rawArgs[0] : "";
-exports.command = knownCommands.has(exports.rawArgs[0] ?? "") ? exports.rawArgs[0] : "init";
-exports.commandArgs = exports.command === exports.rawArgs[0] ? exports.rawArgs.slice(1) : exports.rawArgs;
-exports.args = new Set(exports.commandArgs);
 const flagsWithoutValues = new Set([
     "--adopt-existing",
     "--capture-inbox",
@@ -71,98 +67,169 @@ const knownFlags = new Set([...flagsWithoutValues, ...flagsWithValues, "--help",
 function flagName(arg) {
     return arg.startsWith("--") ? arg.split("=", 1)[0] ?? arg : arg;
 }
-function hasFlag(name) {
+function hasFlagIn(commandArgs, name) {
     const prefix = `${name}=`;
-    return exports.commandArgs.some((arg) => arg === name || arg.startsWith(prefix));
+    return commandArgs.some((arg) => arg === name || arg.startsWith(prefix));
 }
-function flagHasValue(name) {
+function flagHasValue(commandArgs, name) {
     const prefix = `${name}=`;
-    for (let index = 0; index < exports.commandArgs.length; index += 1) {
-        const arg = exports.commandArgs[index];
+    for (let index = 0; index < commandArgs.length; index += 1) {
+        const arg = commandArgs[index];
         if (!arg)
             continue;
         if (arg.startsWith(prefix))
             return arg.slice(prefix.length).trim().length > 0;
         if (arg === name) {
-            const next = exports.commandArgs[index + 1];
+            const next = commandArgs[index + 1];
             return Boolean(next && !next.startsWith("-"));
         }
     }
     return true;
 }
-exports.unknownOptions = Array.from(new Set(exports.commandArgs
-    .filter((arg) => arg.startsWith("-"))
-    .map(flagName)
-    .filter((arg) => !knownFlags.has(arg))));
-exports.unexpectedValueOptions = Array.from(new Set(exports.commandArgs
-    .filter((arg) => arg.startsWith("--") && arg.includes("="))
-    .map(flagName)
-    .filter((arg) => flagsWithoutValues.has(arg))));
-exports.missingValueOptions = Array.from(flagsWithValues).filter((flag) => hasFlag(flag) && !flagHasValue(flag));
-exports.migrateMode = exports.args.has("--migrate") || exports.args.has("--adopt-existing");
-exports.lintMode = exports.args.has("--lint");
-exports.linkCheckMode = exports.args.has("--link-check");
-exports.qualityCheckMode = exports.args.has("--quality-check");
-exports.doctorMode = exports.args.has("--doctor");
-exports.fixMode = exports.args.has("--fix");
-exports.glossaryMode = exports.args.has("--glossary-init");
-exports.issueCreateMode = exports.args.has("--issue-create");
-exports.issueDraftMode = exports.args.has("--issue-draft");
-exports.refreshIndexMode = exports.args.has("--refresh-index");
-exports.captureInboxMode = exports.args.has("--capture-inbox");
-exports.pruneCheckMode = exports.args.has("--prune-check");
-exports.reviewMigrationMode = exports.args.has("--review-migration") || exports.args.has("--semantic-migrate");
-exports.noGitConfigMode = exports.args.has("--no-git-config");
-exports.codeIndexMode = exports.args.has("--code-index") || exports.args.has("--code-evidence-index");
-exports.codeIndexIncrementalMode = exports.args.has("--incremental") || exports.args.has("--code-incremental") || exports.args.has("--code-index-incremental") || exports.args.has("--code-evidence-index-incremental");
-exports.codeIndexFullMode = exports.args.has("--code-index-full") || exports.args.has("--code-evidence-index-full");
-exports.codeReportMode = exports.args.has("--code-report") || exports.args.has("--code-evidence-report");
-exports.codeStatusMode = exports.args.has("--code-status") || exports.args.has("--code-evidence-status");
-exports.codeFilesMode = exports.args.has("--code-files") || exports.args.has("--code-evidence-files");
-exports.codeParserMode = hasFlag("--code-parser") || hasFlag("--code-evidence-parser");
-exports.codeImpactMode = hasFlag("--code-impact") || hasFlag("--code-evidence-impact");
-exports.codeQueryMode = hasFlag("--code-query") || hasFlag("--code-evidence-query");
-exports.codeSearchSymbolMode = hasFlag("--code-search-symbol") || hasFlag("--code-evidence-symbol");
-function argValue(name) {
+function argValueFrom(commandArgs, name) {
     const prefix = `${name}=`;
-    const inline = exports.commandArgs.find((arg) => arg.startsWith(prefix));
+    const inline = commandArgs.find((arg) => arg.startsWith(prefix));
     if (inline)
         return inline.slice(prefix.length);
-    const index = exports.commandArgs.indexOf(name);
-    const next = index >= 0 ? exports.commandArgs[index + 1] : undefined;
+    const index = commandArgs.indexOf(name);
+    const next = index >= 0 ? commandArgs[index + 1] : undefined;
     if (next && !next.startsWith("--")) {
         return next;
     }
     return "";
 }
-function argValues(name) {
+function argValuesFrom(commandArgs, name) {
     const prefix = `${name}=`;
     const values = [];
-    for (let index = 0; index < exports.commandArgs.length; index += 1) {
-        const arg = exports.commandArgs[index];
+    for (let index = 0; index < commandArgs.length; index += 1) {
+        const arg = commandArgs[index];
         if (!arg)
             continue;
         if (arg.startsWith(prefix)) {
             values.push(arg.slice(prefix.length));
         }
         else if (arg === name) {
-            const next = exports.commandArgs[index + 1];
+            const next = commandArgs[index + 1];
             if (next && !next.startsWith("--"))
                 values.push(next);
         }
     }
     return values.flatMap((value) => value.split(",").map((part) => part.trim()).filter(Boolean));
 }
-exports.queryTerm = argValue("--query");
-exports.codeImpactTarget = argValue("--code-impact") || argValue("--code-evidence-impact");
-exports.codeQuerySql = argValue("--code-query") || argValue("--code-evidence-query");
-exports.codeReportSection = argValue("--code-report-section") || argValue("--code-evidence-report-section");
-exports.codeSearchSymbol = argValue("--code-search-symbol") || argValue("--code-evidence-symbol");
-exports.codeIndexOutput = argValue("--code-index-out") || argValue("--code-evidence-out") || ".project-wiki/code-evidence.sqlite";
-exports.codeParser = argValue("--code-parser") || argValue("--code-evidence-parser") || "default";
-exports.codeIndexScopes = [...argValues("--code-scope"), ...argValues("--code-evidence-scope")];
-exports.captureTitle = argValue("--title");
-exports.captureContent = argValue("--content");
-exports.captureCategory = argValue("--category") || "project-candidate";
-exports.issueBodyFile = argValue("--issue-body-file");
-exports.issueDraftTitle = argValue("--issue-title");
+function parseArgs(argv) {
+    const command = knownCommands.has(argv[0] ?? "") ? argv[0] : "init";
+    const commandArgs = command === argv[0] ? argv.slice(1) : argv;
+    const args = new Set(commandArgs);
+    const hasFlag = (name) => hasFlagIn(commandArgs, name);
+    const argValue = (name) => argValueFrom(commandArgs, name);
+    const argValues = (name) => argValuesFrom(commandArgs, name);
+    const codeImpactTarget = argValue("--code-impact") || argValue("--code-evidence-impact");
+    const codeQuerySql = argValue("--code-query") || argValue("--code-evidence-query");
+    const codeSearchSymbol = argValue("--code-search-symbol") || argValue("--code-evidence-symbol");
+    return {
+        args,
+        captureCategory: argValue("--category") || "project-candidate",
+        captureContent: argValue("--content"),
+        captureInboxMode: args.has("--capture-inbox"),
+        captureTitle: argValue("--title"),
+        codeFilesMode: args.has("--code-files") || args.has("--code-evidence-files"),
+        codeImpactMode: hasFlag("--code-impact") || hasFlag("--code-evidence-impact"),
+        codeImpactTarget,
+        codeIndexFullMode: args.has("--code-index-full") || args.has("--code-evidence-index-full"),
+        codeIndexIncrementalMode: args.has("--incremental") || args.has("--code-incremental") || args.has("--code-index-incremental") || args.has("--code-evidence-index-incremental"),
+        codeIndexMode: args.has("--code-index") || args.has("--code-evidence-index"),
+        codeIndexOutput: argValue("--code-index-out") || argValue("--code-evidence-out") || ".project-wiki/code-evidence.sqlite",
+        codeIndexScopes: [...argValues("--code-scope"), ...argValues("--code-evidence-scope")],
+        codeParser: argValue("--code-parser") || argValue("--code-evidence-parser") || "default",
+        codeParserMode: hasFlag("--code-parser") || hasFlag("--code-evidence-parser"),
+        codeQueryMode: hasFlag("--code-query") || hasFlag("--code-evidence-query"),
+        codeQuerySql,
+        codeReportMode: args.has("--code-report") || args.has("--code-evidence-report"),
+        codeReportSection: argValue("--code-report-section") || argValue("--code-evidence-report-section"),
+        codeSearchSymbol,
+        codeSearchSymbolMode: hasFlag("--code-search-symbol") || hasFlag("--code-evidence-symbol"),
+        codeStatusMode: args.has("--code-status") || args.has("--code-evidence-status"),
+        command,
+        commandArgs,
+        doctorMode: args.has("--doctor"),
+        fixMode: args.has("--fix"),
+        glossaryMode: args.has("--glossary-init"),
+        helpMode: argv.includes("--help") || argv.includes("-h"),
+        issueBodyFile: argValue("--issue-body-file"),
+        issueCreateMode: args.has("--issue-create"),
+        issueDraftMode: args.has("--issue-draft"),
+        issueDraftTitle: argValue("--issue-title"),
+        linkCheckMode: args.has("--link-check"),
+        lintMode: args.has("--lint"),
+        migrateMode: args.has("--migrate") || args.has("--adopt-existing"),
+        missingValueOptions: Array.from(flagsWithValues).filter((flag) => hasFlag(flag) && !flagHasValue(commandArgs, flag)),
+        noGitConfigMode: args.has("--no-git-config"),
+        pruneCheckMode: args.has("--prune-check"),
+        qualityCheckMode: args.has("--quality-check"),
+        queryTerm: argValue("--query"),
+        rawArgs: argv,
+        refreshIndexMode: args.has("--refresh-index"),
+        reviewMigrationMode: args.has("--review-migration") || args.has("--semantic-migrate"),
+        unexpectedValueOptions: Array.from(new Set(commandArgs
+            .filter((arg) => arg.startsWith("--") && arg.includes("="))
+            .map(flagName)
+            .filter((arg) => flagsWithoutValues.has(arg)))),
+        unknownCommand: argv[0] && !argv[0].startsWith("-") && !knownCommands.has(argv[0]) ? argv[0] : "",
+        unknownOptions: Array.from(new Set(commandArgs
+            .filter((arg) => arg.startsWith("-"))
+            .map(flagName)
+            .filter((arg) => !knownFlags.has(arg)))),
+    };
+}
+exports.parsedArgs = parseArgs(exports.rawArgs);
+exports.helpMode = exports.parsedArgs.helpMode;
+exports.unknownCommand = exports.parsedArgs.unknownCommand;
+exports.command = exports.parsedArgs.command;
+exports.commandArgs = exports.parsedArgs.commandArgs;
+exports.args = exports.parsedArgs.args;
+exports.unknownOptions = exports.parsedArgs.unknownOptions;
+exports.unexpectedValueOptions = exports.parsedArgs.unexpectedValueOptions;
+exports.missingValueOptions = exports.parsedArgs.missingValueOptions;
+exports.migrateMode = exports.parsedArgs.migrateMode;
+exports.lintMode = exports.parsedArgs.lintMode;
+exports.linkCheckMode = exports.parsedArgs.linkCheckMode;
+exports.qualityCheckMode = exports.parsedArgs.qualityCheckMode;
+exports.doctorMode = exports.parsedArgs.doctorMode;
+exports.fixMode = exports.parsedArgs.fixMode;
+exports.glossaryMode = exports.parsedArgs.glossaryMode;
+exports.issueCreateMode = exports.parsedArgs.issueCreateMode;
+exports.issueDraftMode = exports.parsedArgs.issueDraftMode;
+exports.refreshIndexMode = exports.parsedArgs.refreshIndexMode;
+exports.captureInboxMode = exports.parsedArgs.captureInboxMode;
+exports.pruneCheckMode = exports.parsedArgs.pruneCheckMode;
+exports.reviewMigrationMode = exports.parsedArgs.reviewMigrationMode;
+exports.noGitConfigMode = exports.parsedArgs.noGitConfigMode;
+exports.codeIndexMode = exports.parsedArgs.codeIndexMode;
+exports.codeIndexIncrementalMode = exports.parsedArgs.codeIndexIncrementalMode;
+exports.codeIndexFullMode = exports.parsedArgs.codeIndexFullMode;
+exports.codeReportMode = exports.parsedArgs.codeReportMode;
+exports.codeStatusMode = exports.parsedArgs.codeStatusMode;
+exports.codeFilesMode = exports.parsedArgs.codeFilesMode;
+exports.codeParserMode = exports.parsedArgs.codeParserMode;
+exports.codeImpactMode = exports.parsedArgs.codeImpactMode;
+exports.codeQueryMode = exports.parsedArgs.codeQueryMode;
+exports.codeSearchSymbolMode = exports.parsedArgs.codeSearchSymbolMode;
+function argValue(name) {
+    return argValueFrom(exports.commandArgs, name);
+}
+function argValues(name) {
+    return argValuesFrom(exports.commandArgs, name);
+}
+exports.queryTerm = exports.parsedArgs.queryTerm;
+exports.codeImpactTarget = exports.parsedArgs.codeImpactTarget;
+exports.codeQuerySql = exports.parsedArgs.codeQuerySql;
+exports.codeReportSection = exports.parsedArgs.codeReportSection;
+exports.codeSearchSymbol = exports.parsedArgs.codeSearchSymbol;
+exports.codeIndexOutput = exports.parsedArgs.codeIndexOutput;
+exports.codeParser = exports.parsedArgs.codeParser;
+exports.codeIndexScopes = exports.parsedArgs.codeIndexScopes;
+exports.captureTitle = exports.parsedArgs.captureTitle;
+exports.captureContent = exports.parsedArgs.captureContent;
+exports.captureCategory = exports.parsedArgs.captureCategory;
+exports.issueBodyFile = exports.parsedArgs.issueBodyFile;
+exports.issueDraftTitle = exports.parsedArgs.issueDraftTitle;

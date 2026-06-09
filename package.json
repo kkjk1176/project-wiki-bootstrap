@@ -34,7 +34,7 @@
     "project-wiki-bootstrap": "dist/init-project-wiki.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22.13"
   },
   "scripts": {
     "benchmark": "node benchmarks/project-metrics.js",
@@ -45,7 +45,8 @@
     "benchmark:trend": "node benchmarks/project-metrics.js --trend-markdown",
     "build": "tsc && chmod +x dist/init-project-wiki.js",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && npm run typecheck && bash tests/smoke.sh",
+    "unit": "node --test tests/unit/*.test.js",
+    "test": "npm run build && npm run typecheck && npm run unit && bash tests/smoke.sh",
     "prepack": "npm run build"
   },
   "optionalDependencies": {

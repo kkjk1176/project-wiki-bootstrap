@@ -41,56 +41,19 @@ exports.runCodeFilesMode = runCodeFilesMode;
 exports.runCodeImpactMode = runCodeImpactMode;
 exports.runCodeSearchSymbolMode = runCodeSearchSymbolMode;
 exports.isCodeEvidenceMode = isCodeEvidenceMode;
+exports.isCodeEvidenceModeFor = isCodeEvidenceModeFor;
 const crypto = __importStar(require("node:crypto"));
 const childProcess = __importStar(require("node:child_process"));
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const ts = __importStar(require("typescript"));
 const args_1 = require("./args");
+const code_index_db_1 = require("./code-index-db");
+const code_index_file_policy_1 = require("./code-index-file-policy");
+const code_index_sql_1 = require("./code-index-sql");
 const workspace_1 = require("./workspace");
-const ignoredDirectories = new Set([
-    ".git",
-    ".codex",
-    ".claude",
-    ".project-wiki",
-    "node_modules",
-    ".next",
-    "dist",
-    "build",
-    "coverage",
-    "vendor",
-    "tmp",
-    "temp",
-]);
-const languageByExtension = {
-    ".c": "c",
-    ".cc": "cpp",
-    ".cjs": "javascript",
-    ".cpp": "cpp",
-    ".cs": "csharp",
-    ".css": "css",
-    ".cts": "typescript",
-    ".go": "go",
-    ".java": "java",
-    ".js": "javascript",
-    ".jsx": "javascript",
-    ".kt": "kotlin",
-    ".mjs": "javascript",
-    ".mts": "typescript",
-    ".php": "php",
-    ".py": "python",
-    ".rb": "ruby",
-    ".rs": "rust",
-    ".swift": "swift",
-    ".ts": "typescript",
-    ".tsx": "typescript",
-    ".vue": "vue",
-};
 const codeEvidenceDirectory = ".project-wiki";
 const codeIndexSchemaVersion = "3";
-const codeEvidenceNodeRuntimeRequirement = "Node.js 22.13+ or 24+ recommended; node:sqlite was added in Node.js 22.5.0 and became available without --experimental-sqlite in Node.js 22.13.0";
-const configExtensions = new Set([".json", ".yaml", ".yml", ".toml"]);
-const maxIndexedBytes = 1024 * 1024;
 const httpMethods = new Set(["all", "delete", "get", "patch", "post", "put"]);
 const treeSitterGrammarPackages = {
     "tree-sitter-c": "@sengac/tree-sitter-c",
@@ -140,30 +103,6 @@ const codeReportSectionAliases = {
     workspace_summary: "workspaces",
     workspaces: "workspaces",
 };
-function loadDatabaseSync() {
-    const previousListeners = process.listeners("warning");
-    const suppressExperimentalSqliteWarning = (warning) => {
-        if (warning.name !== "ExperimentalWarning" || !warning.message.includes("SQLite")) {
-            for (const listener of previousListeners)
-                listener.call(process, warning);
-        }
-    };
-    try {
-        process.removeAllListeners("warning");
-        process.on("warning", suppressExperimentalSqliteWarning);
-        const sqlite = require("node:sqlite");
-        return sqlite.DatabaseSync;
-    }
-    catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        return fail(`code evidence index requires a Node.js runtime with node:sqlite support; current Node is ${process.version}. Runtime policy: ${codeEvidenceNodeRuntimeRequirement}. Error: ${message}`);
-    }
-    finally {
-        process.removeAllListeners("warning");
-        for (const listener of previousListeners)
-            process.on("warning", listener);
-    }
-}
 function fail(message) {
     console.error(message);
     process.exit(1);
@@ -189,27 +128,6 @@ function codeEvidenceDatabasePath() {
         relativePath: (0, workspace_1.normalizePath)(path.relative(workspace_1.root, absolutePath)),
     };
 }
-function fileLanguage(relativePath) {
-    if (path.basename(relativePath) === ".env.example")
-        return "config";
-    const extension = path.extname(relativePath).toLowerCase();
-    return languageByExtension[extension] ?? (configExtensions.has(extension) ? "config" : "");
-}
-function isBlockedEnvFile(relativePath) {
-    const base = path.basename(relativePath);
-    return base.startsWith(".env") && base !== ".env.example";
-}
-function isBlockedSensitiveConfigFile(relativePath) {
-    if (fileLanguage(relativePath) !== "config")
-        return false;
-    const base = path.basename(relativePath).toLowerCase();
-    if (base === ".env.example")
-        return false;
-    return /(^|[._-])(secret|secrets|credential|credentials|token|tokens|private|key|keys)([._-]|$)/i.test(base);
-}
-function isJavaScriptLike(relativePath) {
-    return [".cjs", ".cts", ".js", ".jsx", ".mjs", ".mts", ".ts", ".tsx"].includes(path.extname(relativePath).toLowerCase());
-}
 function selectedCodeParserMode() {
     const requested = args_1.codeParser.trim().toLowerCase();
     if (!requested || requested === "default")
@@ -220,7 +138,7 @@ function selectedCodeParserMode() {
 }
 function treeSitterProfile(relativePath) {
     const extension = path.extname(relativePath).toLowerCase();
-    const language = fileLanguage(relativePath);
+    const language = (0, code_index_file_policy_1.fileLanguage)(relativePath);
     if (language === "c")
         return "tree-sitter-c";
     if (language === "cpp")
@@ -254,54 +172,37 @@ function treeSitterProfile(relativePath) {
 function extractionProfile(relativePath, parserMode) {
     if (parserMode === "tree-sitter")
         return treeSitterProfile(relativePath);
-    if (isJavaScriptLike(relativePath))
+    if ((0, code_index_file_policy_1.isJavaScriptLike)(relativePath))
         return "typescript-ast";
-    if (fileLanguage(relativePath) === "python")
+    if ((0, code_index_file_policy_1.fileLanguage)(relativePath) === "python")
         return "python-light";
-    if (fileLanguage(relativePath) === "go")
+    if ((0, code_index_file_policy_1.fileLanguage)(relativePath) === "go")
         return "go-light";
-    if (fileLanguage(relativePath) === "config")
+    if ((0, code_index_file_policy_1.fileLanguage)(relativePath) === "config")
         return "config";
     return "inventory-only";
 }
-function shouldIndexFile(relativePath) {
-    if (isBlockedEnvFile(relativePath))
-        return false;
-    if (isBlockedSensitiveConfigFile(relativePath))
-        return false;
-    const language = fileLanguage(relativePath);
-    if (language)
-        return true;
-    const base = path.basename(relativePath);
-    return ["Dockerfile", "Makefile", "package.json", "tsconfig.json"].includes(base);
-}
-function isIgnoredCodePath(relativePath) {
-    return (0, workspace_1.normalizePath)(relativePath)
-        .split("/")
-        .filter(Boolean)
-        .some((part) => ignoredDirectories.has(part));
-}
 function walkCodeFiles(relativePath, files = []) {
-    if (isIgnoredCodePath(relativePath))
+    if ((0, code_index_file_policy_1.isIgnoredCodePath)(relativePath))
         return files.sort();
     const target = (0, workspace_1.abs)(relativePath);
     if (!fs.existsSync(target))
         return files;
     const stat = fs.statSync(target);
     if (stat.isFile()) {
-        if (stat.size <= maxIndexedBytes && shouldIndexFile(relativePath))
+        if (stat.size <= code_index_file_policy_1.maxIndexedBytes && (0, code_index_file_policy_1.shouldIndexFile)(relativePath))
             files.push(relativePath);
         return files.sort();
     }
     for (const entry of fs.readdirSync(target, { withFileTypes: true })) {
         const child = (0, workspace_1.normalizePath)(path.join(relativePath, entry.name));
         if (entry.isDirectory()) {
-            if (!ignoredDirectories.has(entry.name))
+            if (!code_index_file_policy_1.ignoredDirectories.has(entry.name))
                 walkCodeFiles(child, files);
         }
-        else if (entry.isFile() && shouldIndexFile(child)) {
+        else if (entry.isFile() && (0, code_index_file_policy_1.shouldIndexFile)(child)) {
             const childStat = fs.statSync((0, workspace_1.abs)(child));
-            if (childStat.size <= maxIndexedBytes)
+            if (childStat.size <= code_index_file_policy_1.maxIndexedBytes)
                 files.push(child);
         }
     }
@@ -324,11 +225,11 @@ function discoverCodeFiles(scopes) {
     const gitFiles = gitTrackedAndUnignoredFiles(scopes);
     const candidates = gitFiles ?? scopes.flatMap((scope) => walkCodeFiles(scope));
     return Array.from(new Set(candidates))
-        .filter((file) => !isIgnoredCodePath(file))
+        .filter((file) => !(0, code_index_file_policy_1.isIgnoredCodePath)(file))
         .filter((file) => fs.existsSync((0, workspace_1.abs)(file)))
         .filter((file) => fs.statSync((0, workspace_1.abs)(file)).isFile())
-        .filter((file) => shouldIndexFile(file))
-        .filter((file) => fs.statSync((0, workspace_1.abs)(file)).size <= maxIndexedBytes)
+        .filter((file) => (0, code_index_file_policy_1.shouldIndexFile)(file))
+        .filter((file) => fs.statSync((0, workspace_1.abs)(file)).size <= code_index_file_policy_1.maxIndexedBytes)
         .sort();
 }
 function readCodeFile(relativePath, parserMode = "default") {
@@ -336,7 +237,7 @@ function readCodeFile(relativePath, parserMode = "default") {
     return {
         bytes: Buffer.byteLength(text),
         hash: crypto.createHash("sha256").update(text).digest("hex"),
-        language: fileLanguage(relativePath) || "config",
+        language: (0, code_index_file_policy_1.fileLanguage)(relativePath) || "config",
         lines: text.length === 0 ? 0 : text.split(/\r?\n/).length,
         path: relativePath,
         profile: extractionProfile(relativePath, parserMode),
@@ -1191,14 +1092,7 @@ function codeScopes() {
     return scopes.map((scope) => normalizeProjectRelative(scope, "--code-scope"));
 }
 function openDatabase(databasePath) {
-    const DatabaseSync = loadDatabaseSync();
-    return new DatabaseSync(databasePath);
-}
-function isReadOnlySql(sql) {
-    const trimmed = sql.trim().toLowerCase();
-    if (!/^(select|with)\b/.test(trimmed) || /;\s*\S/.test(trimmed))
-        return false;
-    return !/\b(attach|alter|create|delete|detach|drop|insert|pragma|reindex|replace|update|vacuum)\b/.test(trimmed);
+    return (0, code_index_db_1.openDatabase)(databasePath, fail);
 }
 function requireExistingIndex() {
     const databasePath = codeEvidenceDatabasePath();
@@ -1861,7 +1755,7 @@ function runCodeQueryMode() {
         process.exit(1);
     }
     requireExistingIndex();
-    if (!isReadOnlySql(args_1.codeQuerySql)) {
+    if (!(0, code_index_sql_1.isReadOnlySql)(args_1.codeQuerySql)) {
         console.error("code queries must be read-only SQL starting with SELECT or WITH");
         process.exit(1);
     }
@@ -1949,5 +1843,14 @@ function runCodeSearchSymbolMode() {
     }
 }
 function isCodeEvidenceMode() {
-    return args_1.codeIndexMode || Boolean(args_1.codeQuerySql) || args_1.codeReportMode || args_1.codeStatusMode || args_1.codeFilesMode || Boolean(args_1.codeSearchSymbol);
+    return isCodeEvidenceModeFor({ codeFilesMode: args_1.codeFilesMode, codeImpactMode: args_1.codeImpactMode, codeIndexMode: args_1.codeIndexMode, codeQuerySql: args_1.codeQuerySql, codeReportMode: args_1.codeReportMode, codeSearchSymbol: args_1.codeSearchSymbol, codeStatusMode: args_1.codeStatusMode });
+}
+function isCodeEvidenceModeFor(flags) {
+    return flags.codeIndexMode
+        || Boolean(flags.codeQuerySql)
+        || flags.codeReportMode
+        || flags.codeStatusMode
+        || flags.codeFilesMode
+        || flags.codeImpactMode
+        || Boolean(flags.codeSearchSymbol);
 }

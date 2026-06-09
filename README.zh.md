@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/project-wiki-bootstrap.svg?cacheSeconds=300)](https://www.npmjs.com/package/project-wiki-bootstrap)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-brightgreen.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.13-brightgreen.svg)](https://nodejs.org/)
 [![Code evidence index](https://img.shields.io/badge/code%20evidence-node%3Asqlite-blue.svg)](https://nodejs.org/api/sqlite.html)
 
 为从小型仓库到大型项目和 monorepo 的场景，创建供人类和 LLM 编码代理共同使用的 token-efficient 项目规划 wiki。
@@ -193,7 +193,7 @@ cache 会创建在 `.project-wiki/` 下，并可按需重新生成。它是 wiki
 | 搜索 symbol | `npx project-wiki-bootstrap --code-search-symbol Auth` |
 | 执行 read-only SQL | `npx project-wiki-bootstrap --code-query "select path from files order by path"` |
 
-Code evidence indexing 需要提供 `node:sqlite` 的 Node runtime。基础 bootstrap 命令支持 Node 18+，但 evidence index 建议使用 Node 22.13+ 或 Node 24+，因为 `node:sqlite` 在 Node 22.5.0 加入，并从 Node 22.13.0 起无需 `--experimental-sqlite` 即可使用。`--code-parser tree-sitter` 使用可选 `@sengac/tree-sitter*` packages；如果这些 optional dependencies 未安装，会以 package error 失败。
+Project Wiki Bootstrap 整个 package 需要 Node 22.13+。CLI 包含基于 `node:sqlite` 的 code evidence indexing；该 API 在 Node 22.5.0 加入，并从 Node 22.13.0 起无需 `--experimental-sqlite` 即可使用。把最低版本统一为 22.13+，可以让 bootstrap、diagnostics、installed skill runners 和 code evidence commands 使用同一个 supported runtime，而不是按功能拆分 Node 要求。`--code-parser tree-sitter` 使用可选 `@sengac/tree-sitter*` packages；如果这些 optional dependencies 未安装，会以 package error 失败。
 
 ## Language Support Matrix
 
@@ -241,7 +241,10 @@ Repository layout:
 - `src/hooks.ts`: Codex、Claude Code 和 git hook 生成
 - `src/install-skill.ts`: user/project skill installer
 - `src/templates.ts`: 生成的 instruction 和 wiki template
-- `src/code-index.ts`: 可选 SQLite code evidence index
+- `src/code-index.ts`: 可选 SQLite code evidence index orchestration
+- `src/code-index-db.ts`: SQLite runtime loading 和 database adapter types
+- `src/code-index-file-policy.ts`: indexed language、ignored directory、sensitive config exclusion policy
+- `src/code-index-sql.ts`: code evidence query 的 read-only SQL guard
 - `src/wiki-files.ts`: wiki file discovery 和 markdown helper
 - `src/migration.ts`: 现有 wiki migration
 - `src/modes.ts`: lint、search、refresh、capture、prune mode

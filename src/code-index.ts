@@ -3,23 +3,11 @@ import * as childProcess from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as ts from "typescript";
-import { codeFilesMode, codeImpactTarget, codeIndexFullMode, codeIndexIncrementalMode, codeIndexOutput, codeIndexScopes, codeIndexMode, codeParser, codeQuerySql, codeReportMode, codeReportSection, codeSearchSymbol, codeStatusMode } from "./args";
+import { codeFilesMode, codeImpactMode, codeImpactTarget, codeIndexFullMode, codeIndexIncrementalMode, codeIndexOutput, codeIndexScopes, codeIndexMode, codeParser, codeQuerySql, codeReportMode, codeReportSection, codeSearchSymbol, codeStatusMode } from "./args";
+import { openDatabase as openSqliteDatabase, type SqliteDatabase, type SqliteStatement, type SqliteValue } from "./code-index-db";
+import { fileLanguage, ignoredDirectories, isIgnoredCodePath, isJavaScriptLike, maxIndexedBytes, shouldIndexFile } from "./code-index-file-policy";
+import { isReadOnlySql } from "./code-index-sql";
 import { abs, mkdirp, normalizePath, root } from "./workspace";
-
-type SqliteValue = string | number | null;
-
-interface SqliteStatement {
-  all(...params: SqliteValue[]): Record<string, unknown>[];
-  run(...params: SqliteValue[]): void;
-}
-
-interface SqliteDatabase {
-  close(): void;
-  exec(sql: string): void;
-  prepare(sql: string): SqliteStatement;
-}
-
-type SqliteDatabaseConstructor = new (filename: string) => SqliteDatabase;
 
 interface CodeFile {
   bytes: number;
@@ -102,6 +90,16 @@ type CodeParserMode = "default" | "tree-sitter";
 type ExtractionStrength = "structural" | "light" | "config" | "inventory";
 type TreeSitterGenericLanguage = "c" | "cpp" | "csharp" | "java" | "kotlin" | "php" | "rust" | "swift";
 
+interface CodeEvidenceModeFlags {
+  codeFilesMode: boolean;
+  codeImpactMode: boolean;
+  codeIndexMode: boolean;
+  codeQuerySql: string;
+  codeReportMode: boolean;
+  codeSearchSymbol: string;
+  codeStatusMode: boolean;
+}
+
 interface TreeSitterPoint {
   column: number;
   row: number;
@@ -137,51 +135,8 @@ interface ExtractionBackend {
   strength: ExtractionStrength;
 }
 
-const ignoredDirectories = new Set([
-  ".git",
-  ".codex",
-  ".claude",
-  ".project-wiki",
-  "node_modules",
-  ".next",
-  "dist",
-  "build",
-  "coverage",
-  "vendor",
-  "tmp",
-  "temp",
-]);
-
-const languageByExtension: Record<string, string> = {
-  ".c": "c",
-  ".cc": "cpp",
-  ".cjs": "javascript",
-  ".cpp": "cpp",
-  ".cs": "csharp",
-  ".css": "css",
-  ".cts": "typescript",
-  ".go": "go",
-  ".java": "java",
-  ".js": "javascript",
-  ".jsx": "javascript",
-  ".kt": "kotlin",
-  ".mjs": "javascript",
-  ".mts": "typescript",
-  ".php": "php",
-  ".py": "python",
-  ".rb": "ruby",
-  ".rs": "rust",
-  ".swift": "swift",
-  ".ts": "typescript",
-  ".tsx": "typescript",
-  ".vue": "vue",
-};
-
 const codeEvidenceDirectory = ".project-wiki";
 const codeIndexSchemaVersion = "3";
-const codeEvidenceNodeRuntimeRequirement = "Node.js 22.13+ or 24+ recommended; node:sqlite was added in Node.js 22.5.0 and became available without --experimental-sqlite in Node.js 22.13.0";
-const configExtensions = new Set([".json", ".yaml", ".yml", ".toml"]);
-const maxIndexedBytes = 1024 * 1024;
 const httpMethods = new Set(["all", "delete", "get", "patch", "post", "put"]);
 const treeSitterGrammarPackages: Record<string, string> = {
   "tree-sitter-c": "@sengac/tree-sitter-c",
@@ -232,27 +187,6 @@ const codeReportSectionAliases: Record<string, CodeReportSection> = {
   workspaces: "workspaces",
 };
 
-function loadDatabaseSync(): SqliteDatabaseConstructor {
-  const previousListeners = process.listeners("warning");
-  const suppressExperimentalSqliteWarning = (warning: Error): void => {
-    if (warning.name !== "ExperimentalWarning" || !warning.message.includes("SQLite")) {
-      for (const listener of previousListeners) listener.call(process, warning);
-    }
-  };
-  try {
-    process.removeAllListeners("warning");
-    process.on("warning", suppressExperimentalSqliteWarning);
-    const sqlite = require("node:sqlite") as { DatabaseSync: SqliteDatabaseConstructor };
-    return sqlite.DatabaseSync;
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    return fail(`code evidence index requires a Node.js runtime with node:sqlite support; current Node is ${process.version}. Runtime policy: ${codeEvidenceNodeRuntimeRequirement}. Error: ${message}`);
-  } finally {
-    process.removeAllListeners("warning");
-    for (const listener of previousListeners) process.on("warning", listener);
-  }
-}
-
 function fail(message: string): never {
   console.error(message);
   process.exit(1);
@@ -279,28 +213,6 @@ function codeEvidenceDatabasePath(): { absolutePath: string; relativePath: strin
     absolutePath,
     relativePath: normalizePath(path.relative(root, absolutePath)),
   };
-}
-
-function fileLanguage(relativePath: string): string {
-  if (path.basename(relativePath) === ".env.example") return "config";
-  const extension = path.extname(relativePath).toLowerCase();
-  return languageByExtension[extension] ?? (configExtensions.has(extension) ? "config" : "");
-}
-
-function isBlockedEnvFile(relativePath: string): boolean {
-  const base = path.basename(relativePath);
-  return base.startsWith(".env") && base !== ".env.example";
-}
-
-function isBlockedSensitiveConfigFile(relativePath: string): boolean {
-  if (fileLanguage(relativePath) !== "config") return false;
-  const base = path.basename(relativePath).toLowerCase();
-  if (base === ".env.example") return false;
-  return /(^|[._-])(secret|secrets|credential|credentials|token|tokens|private|key|keys)([._-]|$)/i.test(base);
-}
-
-function isJavaScriptLike(relativePath: string): boolean {
-  return [".cjs", ".cts", ".js", ".jsx", ".mjs", ".mts", ".ts", ".tsx"].includes(path.extname(relativePath).toLowerCase());
 }
 
 function selectedCodeParserMode(): CodeParserMode {
@@ -337,22 +249,6 @@ function extractionProfile(relativePath: string, parserMode: CodeParserMode): st
   if (fileLanguage(relativePath) === "go") return "go-light";
   if (fileLanguage(relativePath) === "config") return "config";
   return "inventory-only";
-}
-
-function shouldIndexFile(relativePath: string): boolean {
-  if (isBlockedEnvFile(relativePath)) return false;
-  if (isBlockedSensitiveConfigFile(relativePath)) return false;
-  const language = fileLanguage(relativePath);
-  if (language) return true;
-  const base = path.basename(relativePath);
-  return ["Dockerfile", "Makefile", "package.json", "tsconfig.json"].includes(base);
-}
-
-function isIgnoredCodePath(relativePath: string): boolean {
-  return normalizePath(relativePath)
-    .split("/")
-    .filter(Boolean)
-    .some((part) => ignoredDirectories.has(part));
 }
 
 function walkCodeFiles(relativePath: string, files: string[] = []): string[] {
@@ -1242,14 +1138,7 @@ function codeScopes(): string[] {
 }
 
 function openDatabase(databasePath: string): SqliteDatabase {
-  const DatabaseSync = loadDatabaseSync();
-  return new DatabaseSync(databasePath);
-}
-
-function isReadOnlySql(sql: string): boolean {
-  const trimmed = sql.trim().toLowerCase();
-  if (!/^(select|with)\b/.test(trimmed) || /;\s*\S/.test(trimmed)) return false;
-  return !/\b(attach|alter|create|delete|detach|drop|insert|pragma|reindex|replace|update|vacuum)\b/.test(trimmed);
+  return openSqliteDatabase(databasePath, fail);
 }
 
 function requireExistingIndex(): void {
@@ -2007,5 +1896,15 @@ export function runCodeSearchSymbolMode(): void {
 }
 
 export function isCodeEvidenceMode(): boolean {
-  return codeIndexMode || Boolean(codeQuerySql) || codeReportMode || codeStatusMode || codeFilesMode || Boolean(codeSearchSymbol);
+  return isCodeEvidenceModeFor({ codeFilesMode, codeImpactMode, codeIndexMode, codeQuerySql, codeReportMode, codeSearchSymbol, codeStatusMode });
+}
+
+export function isCodeEvidenceModeFor(flags: CodeEvidenceModeFlags): boolean {
+  return flags.codeIndexMode
+    || Boolean(flags.codeQuerySql)
+    || flags.codeReportMode
+    || flags.codeStatusMode
+    || flags.codeFilesMode
+    || flags.codeImpactMode
+    || Boolean(flags.codeSearchSymbol);
 }

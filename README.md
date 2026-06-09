@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/project-wiki-bootstrap.svg?cacheSeconds=300)](https://www.npmjs.com/package/project-wiki-bootstrap)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-brightgreen.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.13-brightgreen.svg)](https://nodejs.org/)
 [![Code evidence index](https://img.shields.io/badge/code%20evidence-node%3Asqlite-blue.svg)](https://nodejs.org/api/sqlite.html)
 
 Bootstrap a token-efficient project planning wiki for humans and LLM coding agents, from small repositories to large projects and monorepos.
@@ -209,7 +209,7 @@ Useful commands:
 | Search symbols | `npx project-wiki-bootstrap --code-search-symbol Auth` |
 | Run read-only SQL | `npx project-wiki-bootstrap --code-query "select path from files order by path"` |
 
-Code evidence indexing requires a Node runtime with `node:sqlite`. The base bootstrap command supports Node 18+, but the evidence index recommends Node 22.13+ or Node 24+ because `node:sqlite` was added in Node 22.5.0 and became available without `--experimental-sqlite` in Node 22.13.0. `--code-parser tree-sitter` uses optional `@sengac/tree-sitter*` packages and fails with a package error if those optional dependencies are not installed.
+Project Wiki Bootstrap requires Node 22.13+ for the whole package. The CLI includes code evidence indexing built on `node:sqlite`; that API was added in Node 22.5.0 and became available without `--experimental-sqlite` in Node 22.13.0. Using 22.13+ as the minimum keeps bootstrap, diagnostics, installed skill runners, and code evidence commands on one supported runtime instead of splitting feature-specific Node requirements. `--code-parser tree-sitter` uses optional `@sengac/tree-sitter*` packages and fails with a package error if those optional dependencies are not installed.
 
 ## Language Support Matrix
 
@@ -257,7 +257,10 @@ Repository layout:
 - `src/hooks.ts`: Codex, Claude Code, and git hook generation
 - `src/install-skill.ts`: user/project skill installer
 - `src/templates.ts`: generated instruction and wiki templates
-- `src/code-index.ts`: optional SQLite code evidence index
+- `src/code-index.ts`: optional SQLite code evidence index orchestration
+- `src/code-index-db.ts`: SQLite runtime loading and database adapter types
+- `src/code-index-file-policy.ts`: indexed language, ignored directory, and sensitive config exclusion policy
+- `src/code-index-sql.ts`: read-only SQL guard for code evidence queries
 - `src/wiki-files.ts`: wiki file discovery and markdown helpers
 - `src/migration.ts`: existing wiki migration
 - `src/modes.ts`: lint, search, refresh, capture, and prune modes
