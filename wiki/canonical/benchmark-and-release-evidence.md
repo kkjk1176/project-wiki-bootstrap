@@ -109,23 +109,23 @@ Required release-evidence metrics:
 - Workspace graph summaries: implemented in `--code-report` and `--code-report-section workspace-graph`. Report workspace count, package managers, lockfiles, internal dependency edges, and external dependency hotspots before claiming monorepo dependency-graph support.
 - Monorepo-aware routing: report targeted context token size by scope and compare each scope against full wiki plus full repository wiki reads.
 
-## Current Local Large Benchmark
+## Current Clean Local Large Benchmark
 
-- Latest local report: `benchmarks/reports/current-large.json` and `benchmarks/reports/current-large.md`, generated 2026-06-09T07:38:25.482Z.
+- Latest clean local report: `benchmarks/reports/current-large.json` and `benchmarks/reports/current-large.md`, generated 2026-06-09T08:08:07.238Z.
 - Observed with Node v22.19.0/V8 12.4.254.21-node.29 on darwin arm64, Apple M4 Pro, 14 CPUs, 24,576MB memory.
-- Source-control fingerprint in the local generated file: commit `b55fdce781e1`, branch `main`, `dirty: true`, 8 status entries. This is current implementation evidence for README updates, not a clean release-gate baseline.
+- Source-control fingerprint in the local generated file: commit `18e730882c4f`, branch `main`, `dirty: false`, 0 status entries. This is clean local release evidence for README benchmark values.
 - Large assumptions: 500 varied docs-heavy wiki pages, 40 monorepo workspaces across apps/packages/services/libs, 720 scoped-router pages, 1,608 mixed code fixture files, and 3 repo-local standard sample repositories.
-- Benchmark schema: v9 with 1 discarded warmup run and 5 repeated measured runs; timing status was `variable`.
-- Claimable metrics in that run: 18. Unstable metrics: `monorepo.doctor_ms`, `monorepo.query_ms`, and `code.tree_sitter_architecture_report_ms`.
+- Benchmark schema: v9 with 1 discarded warmup run and 5 repeated measured runs; timing status was `stable`.
+- Claimable metrics in that run: 21. Unstable metrics: none.
 - Targeted retrieval vs naive full-wiki scan Markdown context-size estimate avoidance: minimum 99.43%, median 99.61%.
-- Read-time reduction: minimum 99.23%, median 99.49%.
+- Read-time reduction: minimum 99.26%, median 99.47%.
 - Retrieval correctness: 4/4 passed; targeted-context missing evidence files: 0.
-- Scoped router: 720 pages, 13 generated routers, 67.701ms refresh-index time, 4,197-char main index.
-- Full code index: 1,608 files at 4,832.06 files/sec, 332.777ms median.
-- Incremental code index: 2 reindexed files, 186.54ms, 42.15% less wall-clock time than the full code-index run in the same fixture.
-- Architecture/ownership report: 252.961ms, 10 sections, 6 populated evidence tables, 24 routes, 48 dependency hotspot entries.
-- Tree-sitter code index: 1,608 files, 650.093ms, 14 parser profiles. Tree-sitter architecture report timing was unstable and should not be used as a release claim without rerun.
-- Standard sample repos: 3 repos, 16 indexed files total, median sample code-index time 136.106ms, median sample architecture report time 135.797ms, 4 total routes, 5 dependency hotspot entries.
+- Scoped router: 720 pages, 13 generated routers, 67.684ms refresh-index time, 4,197-char main index.
+- Full code index: 1,608 files at 4,781.27 files/sec, 336.312ms median.
+- Incremental code index: 2 reindexed files, 186.776ms, 45.52% less wall-clock time than the full code-index run in the same fixture.
+- Architecture/ownership report: 251.175ms, 10 sections, 6 populated evidence tables, 24 routes, 48 dependency hotspot entries.
+- Tree-sitter code index: 1,608 files, 626.969ms, 14 parser profiles. Tree-sitter architecture report timing was stable at 254.092ms.
+- Standard sample repos: 3 repos, 16 indexed files total, median sample code-index time 132.363ms, median sample architecture report time 135.694ms, 4 total routes, 5 dependency hotspot entries.
 - Sample profiles: `01-web-service:web-routes+package-dependencies+config-bearing+symbol-bearing+mixed-language`, `02-python-cli:config-bearing+symbol-bearing+mixed-language+library-or-tooling`, and `03-mixed-monorepo:web-routes+package-dependencies+config-bearing+symbol-bearing+monorepo-shaped+mixed-language`.
 - Release claims from the current harness require `measurement.timing_status: stable`, an empty `measurement.unstable_metrics`, and `comparison.regression_status: passed` when a baseline is supplied.
 

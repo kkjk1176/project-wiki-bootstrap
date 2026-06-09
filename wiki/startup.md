@@ -35,7 +35,7 @@ review_trigger: session-start summary, routing, language policy, or open project
 - Scenario: bootstrap/update `./wiki`, agent instructions, hooks, diagnostics, scoped routing, optional code evidence.
 - Success: idempotent bootstrap, preservation-first edits, compact hooks, diagnostics, migration copy-risk detection, scoped routing, code evidence.
 - Large-project state: incremental indexing, code reports, Tree-sitter, workspace graph/CODEOWNERS, scoped routing, and v9 benchmarks exist.
-- Measurement/README: metrics are release evidence; install via `npx`; agent lifecycle via local `node`; benchmark tokens mean Markdown context avoided vs naive full-wiki scan, not actual LLM use.
+- Measurement/README: metrics are release evidence; install via `npx`; agents use local `node`; current values use clean schema-v9 `current-large`; tokens mean Markdown context avoided vs naive full-wiki scan, not actual LLM use.
 - Project content language: Korean unless user/project context changes it.
 
 ## Recent Project Decisions

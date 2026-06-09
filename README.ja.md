@@ -31,40 +31,40 @@ Project Wiki Bootstrap はエージェントに 2 つのローカル正本を提
 
 ベンチマークはメンテナー向けリリース根拠であり、公開ユーザー向け作業フローではありません。README とリリースノートが曖昧な性能表現ではなく、境界付きの数値で説明できるようにする根拠です。
 
-最新ローカル大規模レポート: `benchmarks/reports/current-large.json`、2026-06-09T07:38:25.482Z 生成、Node v22.19.0、darwin arm64、Apple M4 Pro、測定実行 5 回と破棄したウォームアップ実行 1 回。時間測定状態は `variable`、不安定な測定値は `monorepo.doctor_ms`、`monorepo.query_ms`、`code.tree_sitter_architecture_report_ms` です。git 状態の指紋が dirty だったため、クリーンなリリースゲート基準値ではなくローカル検証値として扱ってください。
+最新 clean 大規模レポート: `benchmarks/reports/current-large.json`、2026-06-09T08:08:07.238Z 生成、Node v22.19.0、darwin arm64、Apple M4 Pro、commit `18e730882c4f`、測定実行 5 回と破棄したウォームアップ実行 1 回。時間測定状態は `stable`、unstable metrics は `none`、git 状態の指紋は clean です。
 
 | 項目 | 結果 |
 | --- | ---: |
 | Markdown コンテキスト推定回避量の中央値 | 99.61% |
 | Markdown コンテキスト推定回避量の最小値 | 99.43% |
-| 読み取り時間削減の中央値 | 99.49% |
-| 読み取り時間削減の最小値 | 99.23% |
+| 読み取り時間削減の中央値 | 99.47% |
+| 読み取り時間削減の最小値 | 99.26% |
 | 測定した wiki ページ | 1,601 |
 | コード index ファイル | 1,608 |
-| コード index 時間 | 332.777ms |
-| コード index スループット | 4,832.06 files/sec |
-| 増分 index 時間 | 186.54ms |
-| 全体に対する増分時間削減 | 42.15% |
-| アーキテクチャレポート時間 | 252.961ms |
+| コード index 時間 | 336.312ms |
+| コード index スループット | 4,781.27 files/sec |
+| 増分 index 時間 | 186.776ms |
+| 全体に対する増分時間削減 | 45.52% |
+| アーキテクチャレポート時間 | 251.175ms |
 | アーキテクチャレポート根拠テーブル | 6 |
 | アーキテクチャレポート route | 24 |
 | サンプルリポジトリ | 3 |
 | ベンチマーク実行 | 5 |
 | ウォームアップ実行 | 1 |
-| 時間測定状態 | variable |
-| 不安定な測定値 | 3 |
+| 時間測定状態 | stable |
+| 不安定な測定値 | none |
 
 シナリオ要約:
 
 | シナリオ | 規模 | 結果 |
 | --- | ---: | --- |
-| 文書の多い wiki | 500ページ | 99.74% Markdown コンテキスト推定回避、99.49% 読み取り削減、43.423ms query |
-| モノレポ wiki | 320ページ | 99.43% Markdown コンテキスト推定回避、99.23% 読み取り削減、83.149ms doctor(不安定) |
-| スコープ別ルーター wiki | 720ページ | 99.61% Markdown コンテキスト推定回避、99.54% 読み取り削減、67.701ms refresh |
-| コードの多い混合 index | 1,608ファイル | 332.777ms full index、186.54ms incremental、252.961ms report、650.093ms Tree-sitter index |
-| サンプルリポジトリ検証 | 3リポジトリ、16ファイル | 136.106ms コード index 中央値、135.797ms アーキテクチャレポート中央値 |
+| 文書の多い wiki | 500ページ | 99.74% Markdown コンテキスト推定回避、99.47% 読み取り削減、43.83ms query |
+| モノレポ wiki | 320ページ | 99.43% Markdown コンテキスト推定回避、99.26% 読み取り削減、81.12ms doctor |
+| スコープ別ルーター wiki | 720ページ | 99.61% Markdown コンテキスト推定回避、99.55% 読み取り削減、67.684ms refresh |
+| コードの多い混合 index | 1,608ファイル | 336.312ms full index、186.776ms incremental、251.175ms report、626.969ms Tree-sitter index |
+| サンプルリポジトリ検証 | 3リポジトリ、16ファイル | 132.363ms コード index 中央値、135.694ms アーキテクチャレポート中央値 |
 
-主張範囲: トークン推定値は `ceil(characters / 4)` による Markdown コンテキストサイズ推定です。モデル tokenizer 出力や API 課金カウンターではなく、実際の LLM トークン使用量を測定していません。ベンチマークは、targeted retrieval で読む wiki コンテキストが、fixture の全 wiki Markdown ファイルを読む naive full-wiki scan に比べてどれだけ Markdown コンテキスト入力を避けるかを比較します。コード index 測定値は生成/サンプルリポジトリで測定したローカル CLI 子プロセス時間です。不安定と表示された測定値はリリース主張に使う前に再実行してください。
+主張範囲: トークン推定値は `ceil(characters / 4)` による Markdown コンテキストサイズ推定です。モデル tokenizer 出力や API 課金カウンターではなく、実際の LLM トークン使用量を測定していません。ベンチマークは、targeted retrieval で読む wiki コンテキストが、fixture の全 wiki Markdown ファイルを読む naive full-wiki scan に比べてどれだけ Markdown コンテキスト入力を避けるかを比較します。コード index 測定値は生成/サンプルリポジトリで測定したローカル CLI 子プロセス時間です。
 
 ## インストール
 

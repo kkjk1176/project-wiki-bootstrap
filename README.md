@@ -31,40 +31,40 @@ The core idea is not "write more docs." It is "keep the first agent read small, 
 
 Benchmarks are maintainer release evidence, not a public user workflow. They exist so README and release notes can make bounded claims with numbers instead of vague performance language.
 
-Latest local large report: `benchmarks/reports/current-large.json`, generated 2026-06-09T07:38:25.482Z on Node v22.19.0, darwin arm64, Apple M4 Pro, 5 measured runs with 1 discarded warmup run. Timing status was `variable`; unstable metrics were `monorepo.doctor_ms`, `monorepo.query_ms`, and `code.tree_sitter_architecture_report_ms`. The report source-control fingerprint was dirty, so treat these as local validation values, not a clean release-gate baseline.
+Latest clean large report: `benchmarks/reports/current-large.json`, generated 2026-06-09T08:08:07.238Z on Node v22.19.0, darwin arm64, Apple M4 Pro, commit `18e730882c4f`, 5 measured runs with 1 discarded warmup run. Timing status was `stable`; unstable metrics were `none`; the report source-control fingerprint was clean.
 
 | Metric | Result |
 | --- | ---: |
 | Median estimated Markdown context avoidance | 99.61% |
 | Minimum estimated Markdown context avoidance | 99.43% |
-| Median read-time reduction | 99.49% |
-| Minimum read-time reduction | 99.23% |
+| Median read-time reduction | 99.47% |
+| Minimum read-time reduction | 99.26% |
 | Wiki pages measured | 1,601 |
 | Code-index files | 1,608 |
-| Code-index time | 332.777ms |
-| Code-index throughput | 4,832.06 files/sec |
-| Incremental index time | 186.54ms |
-| Full-to-incremental time reduction | 42.15% |
-| Architecture report time | 252.961ms |
+| Code-index time | 336.312ms |
+| Code-index throughput | 4,781.27 files/sec |
+| Incremental index time | 186.776ms |
+| Full-to-incremental time reduction | 45.52% |
+| Architecture report time | 251.175ms |
 | Architecture report evidence tables | 6 |
 | Architecture report routes | 24 |
 | Sample repos | 3 |
 | Benchmark runs | 5 |
 | Warmup runs | 1 |
-| Timing status | variable |
-| Unstable metrics | 3 |
+| Timing status | stable |
+| Unstable metrics | none |
 
 Scenario summary:
 
 | Scenario | Scale | Result |
 | --- | ---: | --- |
-| Docs-heavy wiki | 500 pages | 99.74% estimated Markdown context avoidance, 99.49% read reduction, 43.423ms query |
-| Monorepo wiki | 320 pages | 99.43% estimated Markdown context avoidance, 99.23% read reduction, 83.149ms doctor (unstable) |
-| Scoped router wiki | 720 pages | 99.61% estimated Markdown context avoidance, 99.54% read reduction, 67.701ms refresh |
-| Code-heavy mixed index | 1,608 files | 332.777ms full index, 186.54ms incremental, 252.961ms report, 650.093ms Tree-sitter index |
-| Sample repo validation | 3 repos, 16 files | 136.106ms median code index, 135.797ms median architecture report |
+| Docs-heavy wiki | 500 pages | 99.74% estimated Markdown context avoidance, 99.47% read reduction, 43.83ms query |
+| Monorepo wiki | 320 pages | 99.43% estimated Markdown context avoidance, 99.26% read reduction, 81.12ms doctor |
+| Scoped router wiki | 720 pages | 99.61% estimated Markdown context avoidance, 99.55% read reduction, 67.684ms refresh |
+| Code-heavy mixed index | 1,608 files | 336.312ms full index, 186.776ms incremental, 251.175ms report, 626.969ms Tree-sitter index |
+| Sample repo validation | 3 repos, 16 files | 132.363ms median code index, 135.694ms median architecture report |
 
-Claim boundary: token estimates use `ceil(characters / 4)` as a Markdown context-size estimate. They are not model tokenizer output, API billing counters, or measured real LLM token consumption. The benchmark compares the wiki context read by targeted retrieval against a naive full-wiki scan that reads every wiki Markdown file in the fixture. Code-index metrics are local CLI subprocess timings over generated and sample repositories; sample repo values are observational evidence for those explicit fixtures. Metrics marked unstable should be rerun before they are used as release claims.
+Claim boundary: token estimates use `ceil(characters / 4)` as a Markdown context-size estimate. They are not model tokenizer output, API billing counters, or measured real LLM token consumption. The benchmark compares the wiki context read by targeted retrieval against a naive full-wiki scan that reads every wiki Markdown file in the fixture. Code-index metrics are local CLI subprocess timings over generated and sample repositories; sample repo values are observational evidence for those explicit fixtures.
 
 ## Install
 
