@@ -18,8 +18,8 @@ function codeIndex(): CodeIndexModule {
 
 function printUsage(): void {
   console.log(`Usage:
-  project-wiki-bootstrap [init] [options]
-  project-wiki-bootstrap install-skill [--scope user|project] [--agents codex|claude|both]
+  project-librarian [init] [options]
+  project-librarian install-skill [--scope user|project] [--agents codex|claude|both]
 
 Options:
   --migrate, --adopt-existing      Preserve an existing wiki as wiki_legacy and create migration inboxes.
@@ -255,7 +255,7 @@ if (glossaryMode) modes.push("glossary");
 if (captureInboxMode) modes.push("capture-inbox");
 if (refreshIndexMode) modes.push("refresh-index");
 if (noGitConfigMode) modes.push("no-git-config");
-console.log(modes.length > 0 ? `Project wiki bootstrap + ${modes.join(" + ")} complete.` : "Project wiki bootstrap complete.");
+console.log(modes.length > 0 ? `Project Librarian + ${modes.join(" + ")} complete.` : "Project Librarian complete.");
 for (const [relativePath, status] of results) {
   console.log(`${String(status).padEnd(7)} ${relativePath}`);
 }

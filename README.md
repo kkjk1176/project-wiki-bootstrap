@@ -1,13 +1,13 @@
-# Project Wiki Bootstrap
+# Project Librarian
 
-[![npm version](https://img.shields.io/npm/v/project-wiki-bootstrap.svg?cacheSeconds=300)](https://www.npmjs.com/package/project-wiki-bootstrap)
+[![npm version](https://img.shields.io/npm/v/project-librarian.svg?cacheSeconds=300)](https://www.npmjs.com/package/project-librarian)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.13-brightgreen.svg)](https://nodejs.org/)
 [![Code evidence index](https://img.shields.io/badge/code%20evidence-node%3Asqlite-blue.svg)](https://nodejs.org/api/sqlite.html)
 
 Compact project memory and code evidence for Codex and Claude Code.
 
-Project Wiki Bootstrap creates a repo-local planning wiki, compact startup hooks, and an optional SQLite code evidence index so agents can start with the project plan, route to the right document, and inspect code-backed evidence without repeatedly scanning the whole repository.
+Project Librarian creates a repo-local planning wiki, compact startup hooks, and an optional SQLite code evidence index so agents can start with the project plan, route to the right document, and inspect code-backed evidence without repeatedly scanning the whole repository.
 
 Languages: [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh.md)
 
@@ -15,7 +15,7 @@ Languages: [English](README.md) | [한국어](README.ko.md) | [日本語](README
 
 LLM coding agents waste context and tool calls when every session starts by rediscovering the project: reading old chats, scanning markdown, grepping source, and guessing which files matter.
 
-Project Wiki Bootstrap gives agents two local sources of truth:
+Project Librarian gives agents two local sources of truth:
 
 | Surface | What It Gives The Agent |
 | --- | --- |
@@ -71,24 +71,24 @@ Claim boundary: token estimates use `ceil(characters / 4)` as a Markdown context
 Use `npx` only for initial skill installation:
 
 ```bash
-npx project-wiki-bootstrap install-skill --scope user --agents both
+npx project-librarian install-skill --scope user --agents both
 ```
 
 Install into the current repository instead:
 
 ```bash
-npx project-wiki-bootstrap install-skill --scope project --agents both
+npx project-librarian install-skill --scope project --agents both
 ```
 
 `install-skill` copies reusable skill files only. It does not create or update `AGENTS.md`, `CLAUDE.md`, `wiki/`, `.codex/hooks.json`, or `.claude/settings.json`.
 
 | Situation | Command |
 | --- | --- |
-| Install globally for Codex and Claude Code | `npx project-wiki-bootstrap install-skill --scope user --agents both` |
-| Install in the current repository | `npx project-wiki-bootstrap install-skill --scope project --agents both` |
-| Install only Codex | `npx project-wiki-bootstrap install-skill --agents codex` |
-| Install only Claude Code | `npx project-wiki-bootstrap install-skill --agents claude` |
-| Preview install output | `npx project-wiki-bootstrap install-skill --scope project --agents both --dry-run` |
+| Install globally for Codex and Claude Code | `npx project-librarian install-skill --scope user --agents both` |
+| Install in the current repository | `npx project-librarian install-skill --scope project --agents both` |
+| Install only Codex | `npx project-librarian install-skill --agents codex` |
+| Install only Claude Code | `npx project-librarian install-skill --agents claude` |
+| Preview install output | `npx project-librarian install-skill --scope project --agents both --dry-run` |
 
 `--agents` also accepts comma-separated values such as `codex,claude`. `--scope` accepts `user` or `project`.
 
@@ -98,15 +98,15 @@ After installation, agents should run the installed local copy with `node`, not 
 
 | Installation | Runner |
 | --- | --- |
-| Project-scoped Codex skill | `node .codex/skills/project-wiki-bootstrap/dist/init-project-wiki.js` |
-| Project-scoped Claude skill | `node .claude/skills/project-wiki-bootstrap/dist/init-project-wiki.js` |
-| User-scoped Codex skill | `node ~/.codex/skills/project-wiki-bootstrap/dist/init-project-wiki.js` |
-| User-scoped Claude skill | `node ~/.claude/skills/project-wiki-bootstrap/dist/init-project-wiki.js` |
+| Project-scoped Codex skill | `node .codex/skills/project-librarian/dist/init-project-wiki.js` |
+| Project-scoped Claude skill | `node .claude/skills/project-librarian/dist/init-project-wiki.js` |
+| User-scoped Codex skill | `node ~/.codex/skills/project-librarian/dist/init-project-wiki.js` |
+| User-scoped Claude skill | `node ~/.claude/skills/project-librarian/dist/init-project-wiki.js` |
 
 The examples below use:
 
 ```bash
-PROJECT_WIKI_BOOTSTRAP="node .codex/skills/project-wiki-bootstrap/dist/init-project-wiki.js"
+PROJECT_LIBRARIAN="node .codex/skills/project-librarian/dist/init-project-wiki.js"
 ```
 
 Use the matching local runner for your install location.
@@ -116,39 +116,39 @@ Use the matching local runner for your install location.
 Bootstrap or update the wiki from the project root:
 
 ```bash
-$PROJECT_WIKI_BOOTSTRAP
+$PROJECT_LIBRARIAN
 ```
 
 Validate and maintain the wiki:
 
 | Goal | Agent Command |
 | --- | --- |
-| Create or update the wiki | `$PROJECT_WIKI_BOOTSTRAP` |
-| Migrate existing docs/wiki content | `$PROJECT_WIKI_BOOTSTRAP --migrate` |
-| Validate generated setup | `$PROJECT_WIKI_BOOTSTRAP --lint` |
-| Check links and document quality | `$PROJECT_WIKI_BOOTSTRAP --doctor` |
-| Refresh generated routing before diagnostics | `$PROJECT_WIKI_BOOTSTRAP --doctor --fix` |
-| Search project wiki content | `$PROJECT_WIKI_BOOTSTRAP --query "authentication decisions"` |
-| Capture a candidate note | `$PROJECT_WIKI_BOOTSTRAP --capture-inbox --title "Candidate" --content "Details"` |
-| Report stale or unresolved wiki pages | `$PROJECT_WIKI_BOOTSTRAP --prune-check` |
-| Install hook files without changing git config | `$PROJECT_WIKI_BOOTSTRAP --no-git-config` |
+| Create or update the wiki | `$PROJECT_LIBRARIAN` |
+| Migrate existing docs/wiki content | `$PROJECT_LIBRARIAN --migrate` |
+| Validate generated setup | `$PROJECT_LIBRARIAN --lint` |
+| Check links and document quality | `$PROJECT_LIBRARIAN --doctor` |
+| Refresh generated routing before diagnostics | `$PROJECT_LIBRARIAN --doctor --fix` |
+| Search project wiki content | `$PROJECT_LIBRARIAN --query "authentication decisions"` |
+| Capture a candidate note | `$PROJECT_LIBRARIAN --capture-inbox --title "Candidate" --content "Details"` |
+| Report stale or unresolved wiki pages | `$PROJECT_LIBRARIAN --prune-check` |
+| Install hook files without changing git config | `$PROJECT_LIBRARIAN --no-git-config` |
 
 Build and inspect code evidence:
 
 | Goal | Agent Command |
 | --- | --- |
-| Build the default evidence cache | `$PROJECT_WIKI_BOOTSTRAP --code-index --code-scope src` |
-| Build multiple scopes | `$PROJECT_WIKI_BOOTSTRAP --code-index --code-scope src --code-scope packages/api` |
-| Require incremental update | `$PROJECT_WIKI_BOOTSTRAP --code-index --incremental` |
-| Force a full rebuild | `$PROJECT_WIKI_BOOTSTRAP --code-index --code-index-full` |
-| Use optional Tree-sitter backend | `$PROJECT_WIKI_BOOTSTRAP --code-index --code-parser tree-sitter` |
-| Show cache status | `$PROJECT_WIKI_BOOTSTRAP --code-status` |
-| List indexed files | `$PROJECT_WIKI_BOOTSTRAP --code-files` |
-| Print architecture and ownership report | `$PROJECT_WIKI_BOOTSTRAP --code-report` |
-| Print one report section | `$PROJECT_WIKI_BOOTSTRAP --code-report --code-report-section routes` |
-| Inspect impact evidence | `$PROJECT_WIKI_BOOTSTRAP --code-impact healthHandler` |
-| Search indexed symbols | `$PROJECT_WIKI_BOOTSTRAP --code-search-symbol Auth` |
-| Run conservative read-only SQL | `$PROJECT_WIKI_BOOTSTRAP --code-query "select path from files order by path"` |
+| Build the default evidence cache | `$PROJECT_LIBRARIAN --code-index --code-scope src` |
+| Build multiple scopes | `$PROJECT_LIBRARIAN --code-index --code-scope src --code-scope packages/api` |
+| Require incremental update | `$PROJECT_LIBRARIAN --code-index --incremental` |
+| Force a full rebuild | `$PROJECT_LIBRARIAN --code-index --code-index-full` |
+| Use optional Tree-sitter backend | `$PROJECT_LIBRARIAN --code-index --code-parser tree-sitter` |
+| Show cache status | `$PROJECT_LIBRARIAN --code-status` |
+| List indexed files | `$PROJECT_LIBRARIAN --code-files` |
+| Print architecture and ownership report | `$PROJECT_LIBRARIAN --code-report` |
+| Print one report section | `$PROJECT_LIBRARIAN --code-report --code-report-section routes` |
+| Inspect impact evidence | `$PROJECT_LIBRARIAN --code-impact healthHandler` |
+| Search indexed symbols | `$PROJECT_LIBRARIAN --code-search-symbol Auth` |
+| Run conservative read-only SQL | `$PROJECT_LIBRARIAN --code-query "select path from files order by path"` |
 
 Only one code evidence mode can run at a time. `--incremental`, `--code-index-full`, and `--code-parser` are valid only with `--code-index`.
 
@@ -223,8 +223,8 @@ Recognized but inventory-only extensions include `.rb`, `.vue`, and `.css`. Conf
 Use the local runner for agent execution:
 
 ```bash
-$PROJECT_WIKI_BOOTSTRAP [init] [options]
-$PROJECT_WIKI_BOOTSTRAP install-skill [--scope user|project] [--agents codex|claude|both]
+$PROJECT_LIBRARIAN [init] [options]
+$PROJECT_LIBRARIAN install-skill [--scope user|project] [--agents codex|claude|both]
 ```
 
 Important options:
@@ -273,7 +273,7 @@ Maintainer benchmark commands live in [benchmarks/README.md](benchmarks/README.m
 
 This project is inspired by Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) pattern: keep persistent markdown context close to the work instead of reconstructing project state from long chat history.
 
-Project Wiki Bootstrap adapts that idea into an installable CLI and skill for Codex and Claude Code, with repo-local instructions, compact startup hooks, migration helpers, diagnostics, and optional code evidence.
+Project Librarian adapts that idea into an installable CLI and skill for Codex and Claude Code, with repo-local instructions, compact startup hooks, migration helpers, diagnostics, and optional code evidence.
 
 ## License
 

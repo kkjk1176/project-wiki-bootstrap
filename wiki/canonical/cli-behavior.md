@@ -11,7 +11,7 @@ review_trigger: CLI commands, generated files, lifecycle modes, hook behavior, o
 
 ## TL;DR
 
-- `project-wiki-bootstrap` creates or updates a repo-local `wiki/` plus Codex, Claude Code, and git hook support.
+- `project-librarian` creates or updates a repo-local `wiki/` plus Codex, Claude Code, and git hook support.
 - The CLI is intentionally idempotent and preservation-first for existing instructions and wiki pages.
 - Operational modes are grouped into bootstrap/update, wiki diagnostics/routing, issue reporting, hooks/migration, skill installation, and optional code evidence surfaces.
 - Unknown commands, unknown options, and known options missing required values fail before writing project files.

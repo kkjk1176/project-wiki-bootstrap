@@ -13,6 +13,8 @@ review_trigger: package metadata, runtime policy, npm version, release gate, Typ
 
 - npm registry publication is the official public distribution path.
 - The package is preview SemVer below `1.0.0`; public CLI and generated-file behavior remains compatibility-sensitive.
+- `project-librarian@0.2.0` is the source package for the rename release; the old public package name was `project-wiki-bootstrap`.
+- GitHub repository rename and npm package-name availability have been checked for `project-librarian`; npm publication itself is still pending.
 - Node `>=22.13` is the package-wide runtime minimum.
 - Release gates include `npm test`, benchmark evidence when making claims, package inspection, executable `dist`, README command review, and unique npm versioning.
 
@@ -20,9 +22,9 @@ review_trigger: package metadata, runtime policy, npm version, release gate, Typ
 
 Code-proven behavior:
 
-- `package.json` declares package name `project-wiki-bootstrap`, CommonJS package type, MIT license, and Node engine `>=22.13`.
+- `package.json` declares package name `project-librarian`, CommonJS package type, MIT license, and Node engine `>=22.13`.
 - Node `>=22.13` is the minimum for the whole package because code evidence indexing uses `node:sqlite` without experimental flags, and keeping one runtime avoids feature-specific Node support splits; evidence: `package.json`, `README.md`, `src/code-index-db.ts`.
-- The CLI binary maps `project-wiki-bootstrap` to `dist/init-project-wiki.js`; evidence: `package.json`.
+- The CLI binary maps `project-librarian` to `dist/init-project-wiki.js`; evidence: `package.json`.
 - The published package has no runtime dependencies; TypeScript and Node types are development-only dependencies; evidence: `package.json`.
 - npm package metadata includes repository, bugs, homepage, and keyword fields; evidence: `package.json`.
 - npm package contents are restricted through the `files` allowlist to `agents/`, `dist/`, localized READMEs, `LICENSE`, and `SKILL.md`; `package.json` is included by npm automatically.
@@ -31,8 +33,9 @@ Code-proven behavior:
 
 Accepted project policy:
 
-- The package uses the npm registry as the official public distribution channel for the `npx project-wiki-bootstrap ...` command.
-- The first npm publication is `project-wiki-bootstrap@0.1.0`, published as a preview release.
+- The package uses the npm registry as the official public distribution channel for the `npx project-librarian ...` command.
+- The first public package name was `project-wiki-bootstrap`; the project is renamed to `project-librarian` for the `0.2.0` release because the package identity, CLI binary, and installed skill layout changed.
+- On 2026-06-09, `npm view project-librarian version` returned npm `E404`, confirming no package by that name existed in the registry at check time.
 - While below `1.0.0`, treat public CLI commands, flags, generated file contracts, hook behavior, and installed skill layout as compatibility-sensitive.
 - Use patch releases such as `0.1.1` for compatible fixes, documentation corrections that affect installation/use, packaging fixes, and regenerated `dist/` output that does not change public behavior.
 - Use minor releases such as `0.2.0` for new CLI modes, new generated files, changed defaults, changed install contents, changed hook behavior, changed minimum Node version, or any intentional compatibility break before `1.0.0`.
@@ -60,7 +63,9 @@ Code-proven behavior:
 
 ## Published Verification
 
-Verified on 2026-06-08: npm showed `project-wiki-bootstrap@0.1.2` as the current package version, published `npx --yes project-wiki-bootstrap --help` executed successfully, and the project-scope `install-skill --agents both --dry-run` path executed after the install/bootstrap-order fix.
+Verified on 2026-06-08 under the previous package name: npm showed `project-wiki-bootstrap@0.1.2` as the current package version, published `npx --yes project-wiki-bootstrap --help` executed successfully, and the project-scope `install-skill --agents both --dry-run` path executed after the install/bootstrap-order fix.
+
+`project-librarian` publication is not yet verified in this repository state. The rename release has verified package-name availability and local `npm pack --dry-run`; after publication it must still verify `npx --yes project-librarian --help`.
 
 ## Maintenance Constraint
 

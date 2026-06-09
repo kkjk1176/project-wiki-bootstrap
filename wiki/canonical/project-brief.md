@@ -11,7 +11,7 @@ review_trigger: product direction, audience, scope, success criteria, or languag
 
 ## TL;DR
 
-- Project Wiki Bootstrap은 작은 저장소뿐 아니라 큰 프로젝트와 모노레포에서도 쓸 수 있는 token-efficient project planning wiki와 재생성 가능한 code evidence index를 생성/유지하는 TypeScript CLI 패키지다.
+- Project Librarian은 작은 저장소뿐 아니라 큰 프로젝트와 모노레포에서도 쓸 수 있는 token-efficient project planning wiki와 재생성 가능한 code evidence index를 생성/유지하는 TypeScript CLI 패키지다.
 - 핵심 사용자는 Codex/Claude Code 같은 LLM coding agent를 쓰는 개발자와, agent가 반복해서 읽을 durable project context 및 코드 근거가 필요한 팀, 특히 큰 저장소에서 context routing과 code-backed planning update가 필요한 팀이다.
 - 성공 기준은 idempotent bootstrap, 기존 수동 내용 보존, compact startup hook, lint 가능한 생성물, migration/search/inbox, scoped routing, code-evidence index/report/impact 모드다.
 - README는 설치만 `npx`로 안내하고, agent/LLM이 실행하는 bootstrap, diagnostics, migration, code evidence 등 lifecycle 명령은 설치된 local `node .../dist/init-project-wiki.js` runner로 안내해야 한다.
@@ -20,11 +20,11 @@ review_trigger: product direction, audience, scope, success criteria, or languag
 
 ## Current State
 
-코드 기준 현재 제품은 `project-wiki-bootstrap` CLI다. 기본 실행은 repo-local `wiki/`와 agent instruction files, Codex/Claude session-start hooks, optional git hook 파일을 생성하거나 업데이트한다.
+코드 기준 현재 제품은 `project-librarian` CLI다. 기본 실행은 repo-local `wiki/`와 agent instruction files, Codex/Claude session-start hooks, optional git hook 파일을 생성하거나 업데이트한다.
 
 Code-proven facts:
 
-- npm binary는 `project-wiki-bootstrap`이고 `dist/init-project-wiki.js`를 실행한다. Evidence: `package.json`.
+- npm binary는 `project-librarian`이고 `dist/init-project-wiki.js`를 실행한다. Evidence: `package.json`.
 - source of truth는 TypeScript 파일이 있는 `src/`이며, 배포 실행물은 `dist/`에 커밋된다. Evidence: `README.md`, `package.json`.
 - default bootstrap은 wiki directories, root instructions, Codex/Claude hook config, session hook scripts, git hook scripts, starter wiki pages를 만든다. Evidence: `src/init-project-wiki.ts`.
 - 생성된 session-start hook은 `wiki/startup.md`와 `wiki/index.md`만 compact context로 주입한다. Evidence: `src/hooks.ts`.

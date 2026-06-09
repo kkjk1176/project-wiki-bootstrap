@@ -28,8 +28,9 @@ review_trigger: session-start summary, routing, language policy, or open project
 
 ## Project State
 
-- Product: npm CLI `project-wiki-bootstrap`; TypeScript source in `src/`, committed runtime output in `dist/`.
-- Current npm latest: `project-wiki-bootstrap@0.1.2`.
+- Product: npm CLI source package `project-librarian`; TypeScript source in `src/`, committed runtime output in `dist/`.
+- Source version: `project-librarian@0.2.0` for the rename release; previous published npm package is `project-wiki-bootstrap@0.1.2` until the renamed package is published.
+- GitHub repository remote is `https://github.com/kkjk1176/project-librarian.git`; npm registry lookup for `project-librarian` returned 404 on 2026-06-09, so the package name was available at check time.
 - Problem: token-efficient planning wiki with compact routing for small repos, large projects, and monorepos.
 - Users: Codex/Claude Code developers and teams, including large-repo teams.
 - Scenario: bootstrap/update `./wiki`, agent instructions, hooks, diagnostics, scoped routing, optional code evidence.
@@ -44,6 +45,7 @@ review_trigger: session-start summary, routing, language policy, or open project
 - 2026-06-08: installed skills prefer local `dist/init-project-wiki.js` over network `npx`. See [[decisions/npm-release-policy]].
 - 2026-06-09: large projects/monorepos are first-class targets; metrics are release evidence; approved issue creation uses `--issue-create`; migration rewrites, not copies, legacy markdown. See [[decisions/large-project-roadmap-and-metrics]], [[decisions/log]].
 - 2026-06-09: package minimum Node is `>=22.13` for stable `node:sqlite` across CLI/skill runners. See [[canonical/package-release-contract]], [[decisions/log]].
+- 2026-06-09: product/package/CLI/repository name changed to Project Librarian / `project-librarian` for the `0.2.0` rename release. See [[decisions/npm-release-policy]], [[decisions/log]].
 
 ## Wiki Operating Pointers
 

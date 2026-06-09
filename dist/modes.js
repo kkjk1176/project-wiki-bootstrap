@@ -251,7 +251,7 @@ function issueReportTitle() {
     const title = args_1.issueDraftTitle.replace(/\r?\n/g, " ").trim();
     if (title)
         return title;
-    return "Report project-wiki-bootstrap problem or side effect";
+    return "Report project-librarian problem or side effect";
 }
 function issueDraftMarkdown() {
     const gitRepo = (0, workspace_1.isGitRepository)();
@@ -274,7 +274,7 @@ function issueDraftMarkdown() {
     ]);
     const title = issueReportTitle();
     const environment = [
-        `project-wiki-bootstrap version: ${runtimePackageVersion()}`,
+        `project-librarian version: ${runtimePackageVersion()}`,
         `node version: ${process.version}`,
         `working directory: ${redactedPath(workspace_1.root)}`,
         `git branch: ${branch}`,
@@ -283,21 +283,21 @@ function issueDraftMarkdown() {
         `git core.hooksPath: ${redactedPath(hooksPath)}`,
     ];
     const verification = [
-        "Run `npx project-wiki-bootstrap --lint` and paste the output.",
-        "If generated wiki links or document quality are involved, run `npx project-wiki-bootstrap --doctor` and paste the output.",
+        "Run `npx project-librarian --lint` and paste the output.",
+        "If generated wiki links or document quality are involved, run `npx project-librarian --doctor` and paste the output.",
         "If the problem involves code evidence indexing, include the exact `--code-*` command and whether the runtime supports `node:sqlite`.",
     ];
     return `# ${title}
 
 ## Summary
 
-Describe the problem, side effect, confusing behavior, or edge case found while using project-wiki-bootstrap.
+Describe the problem, side effect, confusing behavior, or edge case found while using project-librarian.
 
 ## What You Were Trying To Do
 
 - Command or natural-language skill request:
 - Target project type:
-- Expected project-wiki-bootstrap behavior:
+- Expected project-librarian behavior:
 
 ## What Happened Instead
 
@@ -338,7 +338,7 @@ ${markdownList(verification, "Add the exact validation commands and results befo
 ## Notes
 
 - This draft is read-only and does not create a GitHub issue.
-- To create a GitHub issue after explicit user approval, use \`project-wiki-bootstrap --issue-create --issue-title "${title.replace(/"/g, "\\\"")}"\` or \`gh issue create --title "${title.replace(/"/g, "\\\"")}" --body-file <draft.md>\`.
+- To create a GitHub issue after explicit user approval, use \`project-librarian --issue-create --issue-title "${title.replace(/"/g, "\\\"")}"\` or \`gh issue create --title "${title.replace(/"/g, "\\\"")}" --body-file <draft.md>\`.
 - If local git changes are present, try to reproduce on a clean checkout before filing when practical.
 `;
 }

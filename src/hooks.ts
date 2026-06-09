@@ -220,7 +220,7 @@ function wikiScope(files) {
     else if (file.startsWith(".claude/hooks/") || file === ".claude/settings.json") add("claude-hooks");
     else if (file === "AGENTS.md" || file === "CLAUDE.md") add("agents");
     else if (file.startsWith(".githooks/")) add("git-hooks");
-    else if (file.startsWith("tools/project-wiki-bootstrap/")) add("skill");
+    else if (file.startsWith("tools/project-librarian/")) add("skill");
   }
   return scopes.length === 0 ? "none" : scopes.join(", ");
 }
@@ -228,9 +228,9 @@ function wikiScope(files) {
 function validationTrailers() {
   const home = process.env.HOME || "";
   const lintScript = [
-    "tools/project-wiki-bootstrap/dist/init-project-wiki.js",
-    path.join(home, ".codex/skills/project-wiki-bootstrap/dist/init-project-wiki.js"),
-    path.join(home, ".claude/skills/project-wiki-bootstrap/dist/init-project-wiki.js"),
+    "tools/project-librarian/dist/init-project-wiki.js",
+    path.join(home, ".codex/skills/project-librarian/dist/init-project-wiki.js"),
+    path.join(home, ".claude/skills/project-librarian/dist/init-project-wiki.js"),
   ].find((candidate) => fs.existsSync(candidate));
   const lintOk = Boolean(lintScript) && commandOk("node", [lintScript, "--lint"]);
   const codexSessionHookOk = fs.existsSync(".codex/hooks/wiki-session-start.js") && commandOk("node", [".codex/hooks/wiki-session-start.js"]);
@@ -257,7 +257,7 @@ const wikiFiles = staged.filter((file) => {
     || file === ".claude/settings.json"
     || file.startsWith(".claude/hooks/")
     || file.startsWith(".githooks/")
-    || file.startsWith("tools/project-wiki-bootstrap/");
+    || file.startsWith("tools/project-librarian/");
 });
 
 if (wikiFiles.length === 0) process.exit(0);

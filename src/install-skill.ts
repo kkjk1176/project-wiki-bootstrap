@@ -8,7 +8,7 @@ type InstallScope = "user" | "project";
 type InstallStatus = "created" | "updated" | "exists" | "dry-run";
 type InstallRow = [label: string, status: InstallStatus];
 
-const skillName = "project-wiki-bootstrap";
+const skillName = "project-librarian";
 const packageFiles = [
   "SKILL.md",
   "dist",
@@ -104,11 +104,11 @@ export function runInstallSkillMode(): void {
     }
   }
 
-  console.log(`Project wiki bootstrap skill ${dryRun ? "install dry-run" : "install"} complete.`);
+  console.log(`Project Librarian skill ${dryRun ? "install dry-run" : "install"} complete.`);
   console.log(`scope: ${scope}`);
   console.log(`agents: ${agents.join(", ")}`);
   console.log("note: install-skill only installs the reusable skill files; it does not create or update AGENTS.md, CLAUDE.md, wiki/, .codex/hooks.json, or .claude/settings.json.");
-  console.log("next: agents should run the installed local project-wiki-bootstrap runner from the target project root; direct shell users can still run `npx project-wiki-bootstrap` when registry access is available.");
+  console.log("next: agents should run the installed local project-librarian runner from the target project root; direct shell users can still run `npx project-librarian` when registry access is available.");
   for (const [label, status] of rows) {
     console.log(`${status.padEnd(7)} ${label}`);
   }

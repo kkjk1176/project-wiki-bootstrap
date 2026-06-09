@@ -1,15 +1,15 @@
 ---
-name: project-wiki-bootstrap
+name: project-librarian
 description: Bootstrap, update, migrate, or code-canonicalize a token-efficient project planning wiki. Use when the user asks to initialize, install, create, update, improve, migrate, adopt existing docs, analyze existing code into project wiki truth, or apply the reusable ./wiki + AGENTS.md + compact SessionStart hook setup for project planning, canonical docs, decision logs, startup summaries, or Karpathy-style LLM wiki workflow.
 metadata:
   short-description: Bootstrap project planning wiki
 ---
 
-# Project Wiki Bootstrap
+# Project Librarian
 
 Use this skill to install, update, validate, search, migrate, or code-canonicalize a token-efficient planning wiki in the current project.
 
-Users should normally interact with this skill through natural language, or through `/project-wiki-bootstrap` in Claude Code. Do not ask users to run lifecycle flags directly unless they explicitly want shell commands; resolve a local project-wiki-bootstrap runner and execute the matching operation yourself from the project root.
+Users should normally interact with this skill through natural language, or through `/project-librarian` in Claude Code. Do not ask users to run lifecycle flags directly unless they explicitly want shell commands; resolve a local project-librarian runner and execute the matching operation yourself from the project root.
 
 Supported actions:
 
@@ -30,58 +30,58 @@ Supported actions:
 
 ## Workflow
 
-1. Resolve the project-wiki-bootstrap runner before executing lifecycle operations.
+1. Resolve the project-librarian runner before executing lifecycle operations.
 
 Prefer an already installed local runner over network package execution:
 
-- In the project-wiki-bootstrap source repository, use `node dist/init-project-wiki.js` when `dist/init-project-wiki.js` exists.
-- In a target repository with a project-scoped Codex skill install, use `node .codex/skills/project-wiki-bootstrap/dist/init-project-wiki.js`.
-- In a target repository with a project-scoped Claude skill install, use `node .claude/skills/project-wiki-bootstrap/dist/init-project-wiki.js`.
-- In a user-scoped Codex skill install, use `node ~/.codex/skills/project-wiki-bootstrap/dist/init-project-wiki.js`.
-- In a user-scoped Claude skill install, use `node ~/.claude/skills/project-wiki-bootstrap/dist/init-project-wiki.js`.
+- In the project-librarian source repository, use `node dist/init-project-wiki.js` when `dist/init-project-wiki.js` exists.
+- In a target repository with a project-scoped Codex skill install, use `node .codex/skills/project-librarian/dist/init-project-wiki.js`.
+- In a target repository with a project-scoped Claude skill install, use `node .claude/skills/project-librarian/dist/init-project-wiki.js`.
+- In a user-scoped Codex skill install, use `node ~/.codex/skills/project-librarian/dist/init-project-wiki.js`.
+- In a user-scoped Claude skill install, use `node ~/.claude/skills/project-librarian/dist/init-project-wiki.js`.
 
 Use `npx` or `npm exec` only when no local runner exists and registry access is explicitly acceptable for the environment. When using npm package execution, pin the package version instead of running an unpinned public package.
 
 If the resolved runner fails, report the real error and stop or fix the cause. Do not manually recreate bootstrap or migration output as a fallback.
 
-2. For project bootstrap requests, choose the matching command and run it from the project root. The examples below use `$PROJECT_WIKI_BOOTSTRAP` to mean the resolved runner from step 1:
+2. For project bootstrap requests, choose the matching command and run it from the project root. The examples below use `$PROJECT_LIBRARIAN` to mean the resolved runner from step 1:
 
 ```bash
-$PROJECT_WIKI_BOOTSTRAP
+$PROJECT_LIBRARIAN
 ```
 
 Use the command variants as follows:
 
-- New project wiki or normal update: `$PROJECT_WIKI_BOOTSTRAP`.
-- Existing wiki/docs need migration: `$PROJECT_WIKI_BOOTSTRAP --migrate`.
-- Install hook files without changing git config: `$PROJECT_WIKI_BOOTSTRAP --no-git-config`.
+- New project wiki or normal update: `$PROJECT_LIBRARIAN`.
+- Existing wiki/docs need migration: `$PROJECT_LIBRARIAN --migrate`.
+- Install hook files without changing git config: `$PROJECT_LIBRARIAN --no-git-config`.
 
 When project terminology becomes important, initialize the optional glossary:
 
 ```bash
-$PROJECT_WIKI_BOOTSTRAP --glossary-init
+$PROJECT_LIBRARIAN --glossary-init
 ```
 
 Map lifecycle requests to these internal operations:
 
-- Validate/check the wiki: `$PROJECT_WIKI_BOOTSTRAP --lint`.
-- Check wiki links and routing: `$PROJECT_WIKI_BOOTSTRAP --link-check`.
-- Check document quality signals: `$PROJECT_WIKI_BOOTSTRAP --quality-check`.
-- Run all wiki diagnostics: `$PROJECT_WIKI_BOOTSTRAP --doctor`.
-- Safely refresh generated routing before diagnostics: `$PROJECT_WIKI_BOOTSTRAP --doctor --fix`.
-- Search the wiki: `$PROJECT_WIKI_BOOTSTRAP --query "search terms"`.
-- Refresh wiki routing/index: `$PROJECT_WIKI_BOOTSTRAP --refresh-index`.
-- Capture a project candidate: `$PROJECT_WIKI_BOOTSTRAP --capture-inbox --title "Candidate title" --content "Candidate content"`.
-- Check stale/pending pages: `$PROJECT_WIKI_BOOTSTRAP --prune-check`.
-- Draft a GitHub issue body for a skill problem or side effect: `$PROJECT_WIKI_BOOTSTRAP --issue-draft --issue-title "Issue title"`.
-- After explicit user approval in a GitHub-backed repository, create the issue through GitHub CLI: `$PROJECT_WIKI_BOOTSTRAP --issue-create --issue-title "Issue title"`.
-- Review migrated inbox state: `$PROJECT_WIKI_BOOTSTRAP --review-migration`.
+- Validate/check the wiki: `$PROJECT_LIBRARIAN --lint`.
+- Check wiki links and routing: `$PROJECT_LIBRARIAN --link-check`.
+- Check document quality signals: `$PROJECT_LIBRARIAN --quality-check`.
+- Run all wiki diagnostics: `$PROJECT_LIBRARIAN --doctor`.
+- Safely refresh generated routing before diagnostics: `$PROJECT_LIBRARIAN --doctor --fix`.
+- Search the wiki: `$PROJECT_LIBRARIAN --query "search terms"`.
+- Refresh wiki routing/index: `$PROJECT_LIBRARIAN --refresh-index`.
+- Capture a project candidate: `$PROJECT_LIBRARIAN --capture-inbox --title "Candidate title" --content "Candidate content"`.
+- Check stale/pending pages: `$PROJECT_LIBRARIAN --prune-check`.
+- Draft a GitHub issue body for a skill problem or side effect: `$PROJECT_LIBRARIAN --issue-draft --issue-title "Issue title"`.
+- After explicit user approval in a GitHub-backed repository, create the issue through GitHub CLI: `$PROJECT_LIBRARIAN --issue-create --issue-title "Issue title"`.
+- Review migrated inbox state: `$PROJECT_LIBRARIAN --review-migration`.
 
 Skill problem reporting contract:
 
-- If you discover a project-wiki-bootstrap bug, regression, confusing generated behavior, unintended side effect, or mismatch between this skill's promised workflow and the implementation while using this skill, run `$PROJECT_WIKI_BOOTSTRAP --issue-draft --issue-title "..."` before the final response unless the user explicitly asked not to generate a draft.
+- If you discover a project-librarian bug, regression, confusing generated behavior, unintended side effect, or mismatch between this skill's promised workflow and the implementation while using this skill, run `$PROJECT_LIBRARIAN --issue-draft --issue-title "..."` before the final response unless the user explicitly asked not to generate a draft.
 - Run the issue draft even when you can also fix the problem locally. The draft is read-only and preserves the problem report; it does not replace the code/wiki fix.
-- If the user explicitly approves filing a GitHub issue and the repository has GitHub CLI `gh` authenticated, run `$PROJECT_WIKI_BOOTSTRAP --issue-create --issue-title "..."` or use `gh issue create --title "..." --body-file <draft.md>`. If `gh`, authentication, the GitHub remote, or network access fails, report the real error and do not silently fall back.
+- If the user explicitly approves filing a GitHub issue and the repository has GitHub CLI `gh` authenticated, run `$PROJECT_LIBRARIAN --issue-create --issue-title "..."` or use `gh issue create --title "..." --body-file <draft.md>`. If `gh`, authentication, the GitHub remote, or network access fails, report the real error and do not silently fall back.
 - Choose a concise issue title that names the observed problem, not the fix. Summarize the generated draft path or key output in the final response.
 
 3. Verify:
@@ -89,9 +89,9 @@ Skill problem reporting contract:
 ```bash
 node .codex/hooks/wiki-session-start.js
 node .claude/hooks/wiki-session-start.js
-$PROJECT_WIKI_BOOTSTRAP --lint
-$PROJECT_WIKI_BOOTSTRAP --doctor
-node -e 'JSON.parse(require("fs").readFileSync(".codex/hooks.json","utf8")); JSON.parse(require("fs").readFileSync(".claude/settings.json","utf8")); console.log("project wiki bootstrap ok")'
+$PROJECT_LIBRARIAN --lint
+$PROJECT_LIBRARIAN --doctor
+node -e 'JSON.parse(require("fs").readFileSync(".codex/hooks.json","utf8")); JSON.parse(require("fs").readFileSync(".claude/settings.json","utf8")); console.log("project librarian ok")'
 ```
 
 4. Report the files created or updated.
@@ -109,7 +109,7 @@ Existing root instruction files are preservation-first:
 Use `--lint` for read-only validation:
 
 ```bash
-$PROJECT_WIKI_BOOTSTRAP --lint
+$PROJECT_LIBRARIAN --lint
 ```
 
 Use `--query`, `--prune-check`, `--issue-draft`, `--link-check`, `--quality-check`, and `--doctor` for read-only inspection/output through the resolved runner. Use `--doctor --fix` when safe generated routing refresh is intended. Use `--refresh-index`, `--capture-inbox`, `--glossary-init`, and `--migrate` only when updating wiki files is intended.
@@ -123,7 +123,7 @@ Use this workflow when the user asks to analyze existing code and turn what the 
 For large repositories or repeated analysis, build a regenerable SQLite code evidence index before canonicalization:
 
 ```bash
-$PROJECT_WIKI_BOOTSTRAP --code-index
+$PROJECT_LIBRARIAN --code-index
 ```
 
 `--code-evidence-index` is an equivalent explicit alias. Use the old `--code-index` form only as the short compatibility name.
@@ -131,38 +131,38 @@ $PROJECT_WIKI_BOOTSTRAP --code-index
 Pass user-requested code scopes internally with `--code-scope`:
 
 ```bash
-$PROJECT_WIKI_BOOTSTRAP --code-index --code-scope src --code-scope packages/api
+$PROJECT_LIBRARIAN --code-index --code-scope src --code-scope packages/api
 ```
 
 Use the optional Tree-sitter backend only when stronger multi-language structural extraction is intended and optional packages are installed:
 
 ```bash
-$PROJECT_WIKI_BOOTSTRAP --code-index --code-parser tree-sitter --code-scope src
+$PROJECT_LIBRARIAN --code-index --code-parser tree-sitter --code-scope src
 ```
 
 Require a compatible existing cache for changed-file-only updates with `--incremental`:
 
 ```bash
-$PROJECT_WIKI_BOOTSTRAP --code-index --incremental --code-scope src
+$PROJECT_LIBRARIAN --code-index --incremental --code-scope src
 ```
 
 Run read-only SQL over the cache with `--code-query`:
 
 ```bash
-$PROJECT_WIKI_BOOTSTRAP --code-query "select path, language from files order by path"
+$PROJECT_LIBRARIAN --code-query "select path, language from files order by path"
 ```
 
 Use the built-in inspection surfaces before writing custom SQL when they are enough:
 
 ```bash
-$PROJECT_WIKI_BOOTSTRAP --code-status
-$PROJECT_WIKI_BOOTSTRAP --code-files
-$PROJECT_WIKI_BOOTSTRAP --code-report --code-report-section parsers
-$PROJECT_WIKI_BOOTSTRAP --code-report --code-report-section workspaces
-$PROJECT_WIKI_BOOTSTRAP --code-report --code-report-section workspace-graph
-$PROJECT_WIKI_BOOTSTRAP --code-report --code-report-section routes
-$PROJECT_WIKI_BOOTSTRAP --code-impact Auth
-$PROJECT_WIKI_BOOTSTRAP --code-search-symbol Auth
+$PROJECT_LIBRARIAN --code-status
+$PROJECT_LIBRARIAN --code-files
+$PROJECT_LIBRARIAN --code-report --code-report-section parsers
+$PROJECT_LIBRARIAN --code-report --code-report-section workspaces
+$PROJECT_LIBRARIAN --code-report --code-report-section workspace-graph
+$PROJECT_LIBRARIAN --code-report --code-report-section routes
+$PROJECT_LIBRARIAN --code-impact Auth
+$PROJECT_LIBRARIAN --code-search-symbol Auth
 ```
 
 The code evidence index lives at `.project-wiki/code-evidence.sqlite`. It is not canonical wiki content, should not be copied into `wiki/`, and can be deleted and regenerated.
@@ -176,7 +176,7 @@ Safety and runtime boundaries:
 - In git repositories, the indexer respects `.gitignore` through `git ls-files --cached --others --exclude-standard`.
 - `.env*` files are excluded from the index, except `.env.example`.
 - Obvious sensitive config filenames containing secret, credential, token, private, or key terms are excluded from the index.
-- Project Wiki Bootstrap requires Node 22.13+ for the installed runner because code evidence indexing uses stable `node:sqlite` without experimental flags; if the runtime is older, report the real runtime error instead of recreating output manually.
+- Project Librarian requires Node 22.13+ for the installed runner because code evidence indexing uses stable `node:sqlite` without experimental flags; if the runtime is older, report the real runtime error instead of recreating output manually.
 - `--code-parser tree-sitter` requires the optional `@sengac/tree-sitter*` package family for JS/TS/TSX/Python/Go/Rust/Java/PHP/Kotlin/Swift/C/C++/C# extraction; if unavailable, report the package error instead of silently using the default backend.
 
 Scope selection is handled through the user's natural-language request:
@@ -198,7 +198,7 @@ Execution contract:
 5. Split large subjects into focused documents when a single file would force agents to read unrelated content.
 6. Cite concrete evidence with repository-relative paths and distinguish code-proven facts from inference.
 7. Update `wiki/startup.md` and `wiki/index.md` only with compact routing hints, not large code summaries.
-8. Run `$PROJECT_WIKI_BOOTSTRAP --refresh-index` and `$PROJECT_WIKI_BOOTSTRAP --lint` after wiki edits when practical.
+8. Run `$PROJECT_LIBRARIAN --refresh-index` and `$PROJECT_LIBRARIAN --lint` after wiki edits when practical.
 
 It installs:
 
@@ -249,7 +249,7 @@ Every wiki markdown file should include a compact metadata header with `status`,
 
 Wiki-specific commit trailers are automated through `.githooks/prepare-commit-msg`.
 
-The hook runs when staged files include `wiki/`, `AGENTS.md`, `CLAUDE.md`, `.codex/hooks.json`, `.codex/hooks/`, `.claude/settings.json`, `.claude/hooks/`, `.githooks/`, or `tools/project-wiki-bootstrap/`.
+The hook runs when staged files include `wiki/`, `AGENTS.md`, `CLAUDE.md`, `.codex/hooks.json`, `.codex/hooks/`, `.claude/settings.json`, `.claude/hooks/`, `.githooks/`, or `tools/project-librarian/`.
 
 It appends these trailers when they are missing:
 
@@ -323,13 +323,13 @@ Inbox rows use these statuses:
 Run semantic review sync after LLM or human processing:
 
 ```bash
-$PROJECT_WIKI_BOOTSTRAP --review-migration
+$PROJECT_LIBRARIAN --review-migration
 ```
 
 `wiki/migration/verification.md` verifies file coverage: every legacy markdown file should be mapped to a new-wiki migration target. This is not a semantic-completeness proof. Semantic migration is complete only after inbox rows are marked adopted/rejected/resolved and `needs-human-review` is 0.
 
 Human review is not required for every inbox item. LLM may process ordinary rows and close them as adopted/rejected/resolved. Human review is reserved for `needs-human-review`.
 
-Run `$PROJECT_WIKI_BOOTSTRAP --doctor` after migration review. `--quality-check` and `--doctor` report `migration-copy-risk` when a new project wiki document appears to be copied from `wiki_legacy*`, and report `migration-filename-reuse` when a legacy filename is reused and needs rewrite verification.
+Run `$PROJECT_LIBRARIAN --doctor` after migration review. `--quality-check` and `--doctor` report `migration-copy-risk` when a new project wiki document appears to be copied from `wiki_legacy*`, and report `migration-filename-reuse` when a legacy filename is reused and needs rewrite verification.
 
 Do not delete `wiki_legacy` until migration verification passes, semantic review is complete, and migration copy diagnostics are clear.

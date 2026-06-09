@@ -11,11 +11,12 @@ review_trigger: package entrypoints, build/test commands, committed dist policy,
 
 ## TL;DR
 
-- The npm binary is `project-wiki-bootstrap` and points to `dist/init-project-wiki.js`.
+- The source npm binary is `project-librarian` and points to `dist/init-project-wiki.js`.
 - Source is TypeScript under `src/`; committed `dist/` is the executable package output.
-- `project-wiki-bootstrap@0.1.2` is currently published on npm as the `latest` dist-tag.
+- `project-librarian@0.2.0` is the rename-release source version; the previous published npm package remains `project-wiki-bootstrap@0.1.2` until the renamed package is published.
+- The GitHub repository remote is now `https://github.com/kkjk1176/project-librarian.git`; npm registry lookup returned 404 for `project-librarian` on 2026-06-09, so the package name was available at check time.
 - The package requires Node `>=22.13` for stable `node:sqlite` and one runtime policy across CLI and installed skill runners.
-- Public install documentation may use `npx project-wiki-bootstrap install-skill ...`; agent/LLM lifecycle documentation should use installed local `node .../dist/init-project-wiki.js` runners for bootstrap, diagnostics, migration, and code evidence commands.
+- Public install documentation targets `npx project-librarian install-skill ...` for the rename release; agent/LLM lifecycle documentation should use installed local `node .../dist/init-project-wiki.js` runners for bootstrap, diagnostics, migration, and code evidence commands.
 - The broad verification command is `npm test`.
 - Maintainer release evidence uses benchmark commands; public claims should cite benchmark values and deltas.
 - Detailed package/release and verification/skill-installation contracts live in the child pages below.
@@ -30,8 +31,9 @@ review_trigger: package entrypoints, build/test commands, committed dist policy,
 
 Code-proven behavior:
 
-- `package.json` declares package name `project-wiki-bootstrap`, CommonJS package type, MIT license, and Node engine `>=22.13`; evidence: `package.json`.
-- The CLI binary maps `project-wiki-bootstrap` to `dist/init-project-wiki.js`; evidence: `package.json`.
+- `package.json` declares package name `project-librarian`, CommonJS package type, MIT license, and Node engine `>=22.13`; evidence: `package.json`.
+- The CLI binary maps `project-librarian` to `dist/init-project-wiki.js`; evidence: `package.json`.
+- `package.json` repository, bugs, and homepage URLs point at `kkjk1176/project-librarian`; evidence: `package.json`.
 - `npm test` runs build, typecheck, unit tests, and smoke tests; evidence: `package.json`.
 - `install-skill` copies reusable skill files into Codex and/or Claude skill directories without bootstrapping a target wiki; evidence: `src/install-skill.ts`.
 - When changing `src/`, rebuild `dist/` before release or commit review because the published binary path points at `dist/init-project-wiki.js`.
@@ -40,7 +42,7 @@ Code-proven behavior:
 
 Accepted project documentation policy:
 
-- Use `npx project-wiki-bootstrap install-skill ...` for initial skill installation because that is the npm distribution path.
-- After installation, examples intended for Codex, Claude Code, or any LLM agent should use the local installed runner, such as `node .codex/skills/project-wiki-bootstrap/dist/init-project-wiki.js`.
-- Avoid documenting `npx project-wiki-bootstrap --lint`, `npx project-wiki-bootstrap --doctor`, `npx project-wiki-bootstrap --code-index`, or other lifecycle modes as the normal agent execution path.
+- Use `npx project-librarian install-skill ...` for initial skill installation because that is the npm distribution path.
+- After installation, examples intended for Codex, Claude Code, or any LLM agent should use the local installed runner, such as `node .codex/skills/project-librarian/dist/init-project-wiki.js`.
+- Avoid documenting `npx project-librarian --lint`, `npx project-librarian --doctor`, `npx project-librarian --code-index`, or other lifecycle modes as the normal agent execution path.
 - Direct shell users may still use the npm binary when registry access is available, but that path should not be the default in agent-facing lifecycle tables.

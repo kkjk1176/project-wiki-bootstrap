@@ -37,9 +37,9 @@ export const standardWikiFiles: Set<string> = new Set([
   "wiki/meta/wiki-ops-v1-decisions.md",
   "wiki/sources/karpathy-llm-wiki.md",
   "wiki/sources/migration-inbox.md",
-  "tools/project-wiki-bootstrap/SKILL.md",
-  "tools/project-wiki-bootstrap/agents/openai.yaml",
-  "tools/project-wiki-bootstrap/dist/init-project-wiki.js",
+  "tools/project-librarian/SKILL.md",
+  "tools/project-librarian/agents/openai.yaml",
+  "tools/project-librarian/dist/init-project-wiki.js",
 ]);
 
 export const ignoredDirs: Set<string> = new Set([".git", ".codex", ".claude", "node_modules", ".next", "dist", "build", "coverage", "vendor", "tmp", "temp"]);
@@ -52,7 +52,7 @@ export function walkMarkdownFiles(dir: string = root, acc: MarkdownFileInfo[] = 
     if (!relativePath || relativePath.startsWith("..")) continue;
     if (entry.isDirectory()) {
       if (ignoredDirs.has(entry.name)) continue;
-      if (relativePath === "tools/project-wiki-bootstrap") continue;
+      if (relativePath === "tools/project-librarian") continue;
       if (relativePath.startsWith("wiki/migration")) continue;
       walkMarkdownFiles(fullPath, acc, baseDir);
     } else if (entry.isFile() && /\.(md|mdx)$/i.test(entry.name) && !standardWikiFiles.has(relativePath)) {

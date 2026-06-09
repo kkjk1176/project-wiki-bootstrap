@@ -1628,7 +1628,7 @@ Compatibility: ${comparison.compatibility?.comparable ? "comparable" : `not comp
 ` : "";
   const unstableClaims = report.measurement.unstable_metrics.length > 0 ? report.measurement.unstable_metrics.join(", ") : "none";
 
-  return `# Project Wiki Bootstrap Benchmark ${report.package_version} (${report.scale})
+  return `# Project Librarian Benchmark ${report.package_version} (${report.scale})
 
 Generated: ${report.generated_at}
 
@@ -1780,7 +1780,7 @@ function benchmarkTrend(inputs) {
 function trendMarkdown(trend) {
   const metricRows = Object.entries(trend.metrics).map(([metric, item]) => `| ${metric} | ${item.direction} | ${item.first ?? "n/a"} | ${item.last ?? "n/a"} | ${formatDelta(item.delta_percent)} | ${item.status} |`).join("\n");
   const pointRows = trend.points.map((point) => `| ${point.order} | ${point.generated_at} | ${point.package_version} | ${point.scale} | ${point.node} | ${point.platform}/${point.arch} | ${point.timing_status} | ${point.claimable_metric_count} | ${point.unstable_metric_count} | ${point.compatibility.comparable ? "yes" : point.compatibility.issues.join(", ")} | ${point.git_commit}${point.git_dirty ? " dirty" : ""} |`).join("\n");
-  return `# Project Wiki Bootstrap Benchmark Trend
+  return `# Project Librarian Benchmark Trend
 
 Generated: ${trend.generated_at}
 

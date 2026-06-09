@@ -60,7 +60,7 @@ grep -q -- "--code-impact" help.log
 grep -q -- "--code-parser" help.log
 grep -q -- "--code-report-section" help.log
 grep -q "Skill problem reporting contract" "$ROOT/SKILL.md"
-grep -Fq 'run `$PROJECT_WIKI_BOOTSTRAP --issue-draft --issue-title' "$ROOT/SKILL.md"
+grep -Fq 'run `$PROJECT_LIBRARIAN --issue-draft --issue-title' "$ROOT/SKILL.md"
 grep -q "Do not manually recreate bootstrap or migration output as a fallback" "$ROOT/SKILL.md"
 if node "$CLI" --incremental > lone-incremental.log 2>&1; then
   echo "expected --incremental without --code-index to fail" >&2
@@ -204,7 +204,7 @@ git init >/dev/null
 mkdir "$TMPDIR/custom-hooks"
 git config core.hooksPath "$TMPDIR/custom-hooks"
 node "$CLI" --issue-draft > issue-draft-git.md
-grep -q "# Report project-wiki-bootstrap problem or side effect" issue-draft-git.md
+grep -q "# Report project-librarian problem or side effect" issue-draft-git.md
 grep -q "git local changes:" issue-draft-git.md
 grep -q "git core.hooksPath: <absolute-path>" issue-draft-git.md
 grep -q "## Diagnostics To Attach" issue-draft-git.md
@@ -213,7 +213,7 @@ if grep -q "$TMPDIR" issue-draft-git.md; then
   exit 1
 fi
 node "$CLI" --issue-draft --title "Capture title should not apply" > issue-draft-title-fallback.md
-grep -q "# Report project-wiki-bootstrap problem or side effect" issue-draft-title-fallback.md
+grep -q "# Report project-librarian problem or side effect" issue-draft-title-fallback.md
 node "$CLI" --issue-draft --issue-title $'Problem title\nInjected heading' > issue-draft-sanitized-title.md
 grep -q "# Problem title Injected heading" issue-draft-sanitized-title.md
 if grep -q "^Injected heading$" issue-draft-sanitized-title.md; then
@@ -234,7 +234,7 @@ if node "$CLI" --issue-create > issue-create-no-git.log 2>&1; then
 fi
 grep -q "requires a git repository with a GitHub remote" issue-create-no-git.log
 git init >/dev/null
-git remote add origin https://github.com/example/project-wiki-bootstrap.git
+git remote add origin https://github.com/example/project-librarian.git
 mkdir bin
 cat > bin/gh <<'EOF'
 #!/usr/bin/env sh
@@ -250,14 +250,14 @@ if [ "$1" = "issue" ] && [ "$2" = "create" ]; then
     fi
     shift
   done
-  echo "https://github.com/example/project-wiki-bootstrap/issues/1"
+  echo "https://github.com/example/project-librarian/issues/1"
   exit 0
 fi
 exit 2
 EOF
 chmod +x bin/gh
 GH_LOG="$PWD/gh.log" GH_BODY_COPY="$PWD/body.md" PATH="$PWD/bin:$PATH" node "$CLI" --issue-create --issue-title "Report created issue" > issue-create.log
-grep -q "https://github.com/example/project-wiki-bootstrap/issues/1" issue-create.log
+grep -q "https://github.com/example/project-librarian/issues/1" issue-create.log
 grep -q "auth status" gh.log
 grep -q "issue create --title Report created issue --body-file" gh.log
 grep -q "## Reproduction Steps" body.md
@@ -931,19 +931,19 @@ mkdir "$TMPDIR/skill-install"
 cd "$TMPDIR/skill-install"
 HOME="$TMPDIR/home" node "$CLI" install-skill --scope user --agents codex,claude > user-skill-install.log
 grep -q "install-skill only installs the reusable skill files" user-skill-install.log
-grep -q "agents should run the installed local project-wiki-bootstrap runner" user-skill-install.log
-test -f "$TMPDIR/home/.codex/skills/project-wiki-bootstrap/SKILL.md"
-test -x "$TMPDIR/home/.codex/skills/project-wiki-bootstrap/dist/init-project-wiki.js"
-test -f "$TMPDIR/home/.claude/skills/project-wiki-bootstrap/SKILL.md"
-test -x "$TMPDIR/home/.claude/skills/project-wiki-bootstrap/dist/init-project-wiki.js"
+grep -q "agents should run the installed local project-librarian runner" user-skill-install.log
+test -f "$TMPDIR/home/.codex/skills/project-librarian/SKILL.md"
+test -x "$TMPDIR/home/.codex/skills/project-librarian/dist/init-project-wiki.js"
+test -f "$TMPDIR/home/.claude/skills/project-librarian/SKILL.md"
+test -x "$TMPDIR/home/.claude/skills/project-librarian/dist/init-project-wiki.js"
 
 node "$CLI" install-skill --scope project --agents both > project-skill-install.log
 grep -q "install-skill only installs the reusable skill files" project-skill-install.log
-grep -q "agents should run the installed local project-wiki-bootstrap runner" project-skill-install.log
-test -f .codex/skills/project-wiki-bootstrap/SKILL.md
-test -x .codex/skills/project-wiki-bootstrap/dist/init-project-wiki.js
-test -f .claude/skills/project-wiki-bootstrap/SKILL.md
-test -x .claude/skills/project-wiki-bootstrap/dist/init-project-wiki.js
+grep -q "agents should run the installed local project-librarian runner" project-skill-install.log
+test -f .codex/skills/project-librarian/SKILL.md
+test -x .codex/skills/project-librarian/dist/init-project-wiki.js
+test -f .claude/skills/project-librarian/SKILL.md
+test -x .claude/skills/project-librarian/dist/init-project-wiki.js
 
 mkdir "$TMPDIR/benchmark"
 cd "$TMPDIR/benchmark"
@@ -981,7 +981,7 @@ grep -q "allow-dirty-baseline" dirty-baseline.log
 node "$ROOT/benchmarks/project-metrics.js" --quick --save-baseline saved-baseline.json --allow-dirty-baseline --markdown release-summary.md > benchmark-release.stdout.json
 test -f saved-baseline.json
 test -f release-summary.md
-grep -q "Project Wiki Bootstrap Benchmark" release-summary.md
+grep -q "Project Librarian Benchmark" release-summary.md
 grep -q "Claim Boundaries" release-summary.md
 node "$ROOT/benchmarks/project-metrics.js" --trend benchmark.json --trend benchmark-comparison.json --trend-out trend.json --trend-markdown trend.md > trend.stdout.json
 test -f trend.json

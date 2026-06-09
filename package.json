@@ -1,7 +1,7 @@
 {
-  "name": "project-wiki-bootstrap",
-  "version": "0.1.2",
-  "description": "Bootstrap a token-efficient project planning wiki for humans and LLM agents.",
+  "name": "project-librarian",
+  "version": "0.2.0",
+  "description": "Create and maintain compact project context for humans and LLM coding agents.",
   "license": "MIT",
   "type": "commonjs",
   "keywords": [
@@ -14,12 +14,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kkjk1176/project-wiki-bootstrap.git"
+    "url": "git+https://github.com/kkjk1176/project-librarian.git"
   },
   "bugs": {
-    "url": "https://github.com/kkjk1176/project-wiki-bootstrap/issues"
+    "url": "https://github.com/kkjk1176/project-librarian/issues"
   },
-  "homepage": "https://github.com/kkjk1176/project-wiki-bootstrap#readme",
+  "homepage": "https://github.com/kkjk1176/project-librarian#readme",
   "files": [
     "agents/",
     "dist/",
@@ -31,7 +31,7 @@
     "SKILL.md"
   ],
   "bin": {
-    "project-wiki-bootstrap": "dist/init-project-wiki.js"
+    "project-librarian": "dist/init-project-wiki.js"
   },
   "engines": {
     "node": ">=22.13"

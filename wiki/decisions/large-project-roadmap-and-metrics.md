@@ -46,7 +46,7 @@ Before claiming a release improves project value, collect and compare benchmark 
 
 ## Rejected
 
-- Rejected: public `project-wiki-bootstrap --metrics` lifecycle command | It frames metrics as a user workflow, but the intended use is maintainer evidence for product claims and release comparisons.
+- Rejected: public `project-librarian --metrics` lifecycle command | It frames metrics as a user workflow, but the intended use is maintainer evidence for product claims and release comparisons.
 - Rejected: qualitative-only release claims | The project needs objective values for token savings, lookup speed, and before/after improvement.
 - Rejected: small synthetic-only benchmark for public claims | It can validate report shape, but it does not represent large docs-heavy, monorepo, or code-heavy project pressure.
 - Rejected: separate public `--code-index-incremental` mode | The existing `--code-index` command can choose full vs incremental based on schema and scope compatibility without making users pick an implementation strategy.

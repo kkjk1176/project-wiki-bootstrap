@@ -17,7 +17,7 @@ During conversation:
 - Update \`./wiki\` in the same turn when project planning content is added, changed, or removed.
 - Do not store non-project LLM memory, assistant preferences, collaboration reminders, or workflow instructions in project wiki canonical or decision docs.
 - Follow \`wiki/AGENTS.md\` for detailed rules when editing files under \`wiki/\`.
-- Let \`.githooks/prepare-commit-msg\` append wiki trailers automatically for staged wiki, hook, AGENTS, or project-wiki-bootstrap files.
+- Let \`.githooks/prepare-commit-msg\` append wiki trailers automatically for staged wiki, hook, AGENTS, or project-librarian files.
 <!-- PROJECT-WIKI-FIRST:END -->`;
 
 export const claudeSection = `<!-- PROJECT-WIKI-CLAUDE:START -->
@@ -489,7 +489,7 @@ No project decisions yet.
 
 ## TL;DR
 
-- This Decision Pack records accepted wiki operating choices for project-wiki-bootstrap.
+- This Decision Pack records accepted wiki operating choices for project-librarian.
 - It covers wiki structure, startup hook scope, metadata, language policy, git hook behavior, migration review, and inbox handling.
 - Project product decisions belong in \`wiki/decisions/\`, while these operating decisions stay in \`wiki/meta/\`.
 

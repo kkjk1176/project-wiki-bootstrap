@@ -11,7 +11,7 @@ review_trigger: wiki operation, metadata, lint, migration, language policy, or s
 
 ## TL;DR
 
-- This Decision Pack records accepted wiki operating choices for project-wiki-bootstrap.
+- This Decision Pack records accepted wiki operating choices for project-librarian.
 - It covers wiki structure, startup hook scope, metadata, language policy, git hook behavior, migration review, and inbox handling.
 - Project product decisions belong in `wiki/decisions/`, while these operating decisions stay in `wiki/meta/`.
 
