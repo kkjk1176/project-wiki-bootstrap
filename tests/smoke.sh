@@ -4,8 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CLI="$ROOT/dist/init-project-wiki.js"
 TMPDIR="$(mktemp -d)"
+ROOT_DIRTY_PROBE="$ROOT/benchmarks/reports/dirty-baseline-smoke.tmp"
 
 cleanup() {
+  rm -f "$ROOT_DIRTY_PROBE"
   rm -rf "$TMPDIR"
 }
 trap cleanup EXIT
@@ -30,6 +32,12 @@ if node "$CLI" --definitely-unknown > unknown-option.log 2>&1; then
   exit 1
 fi
 grep -q "unknown option: --definitely-unknown" unknown-option.log
+test ! -e AGENTS.md
+if node "$CLI" --lint=true > boolean-value.log 2>&1; then
+  echo "expected boolean flag value to fail" >&2
+  exit 1
+fi
+grep -q "option does not take a value: --lint" boolean-value.log
 test ! -e AGENTS.md
 if node "$CLI" --query > missing-query.log 2>&1; then
   echo "expected missing --query value to fail" >&2
@@ -333,6 +341,20 @@ if [ "$(git config --get core.hooksPath || true)" = ".githooks" ]; then
   exit 1
 fi
 
+mkdir "$TMPDIR/malformed-managed-section"
+cd "$TMPDIR/malformed-managed-section"
+cat > AGENTS.md <<'EOF'
+# Existing Agent Instructions
+
+<!-- PROJECT-WIKI-FIRST:START -->
+broken managed section without an end marker
+EOF
+if node "$CLI" > malformed-managed-section.log 2>&1; then
+  echo "expected malformed managed section to fail" >&2
+  exit 1
+fi
+grep -q "malformed managed section" malformed-managed-section.log
+
 mkdir "$TMPDIR/migration-pipe"
 cd "$TMPDIR/migration-pipe"
 mkdir wiki
@@ -511,7 +533,9 @@ git init -q
 mkdir -p src
 mkdir -p apps/web
 mkdir -p .github
+mkdir -p dist
 mkdir -p ignored
+mkdir -p vendor
 printf "ignored/\n.env\n.env.local\n" > .gitignore
 cat > package.json <<'EOF'
 {
@@ -594,6 +618,12 @@ EOF
 cat > ignored/ignored.js <<'EOF'
 function ignoredHandler() {}
 EOF
+cat > dist/built.js <<'EOF'
+export const builtArtifact = true;
+EOF
+cat > vendor/vendor.js <<'EOF'
+export const vendoredArtifact = true;
+EOF
 cat > .env <<'EOF'
 SECRET_TOKEN=do-not-index
 EOF
@@ -641,6 +671,10 @@ grep -q ".env.example" code-files.json
 ! grep -q "LOCAL_SECRET" code-files.json
 ! grep -q "TOP_SECRET" code-files.json
 ! grep -q "SERVICE_TOKEN" code-files.json
+node "$CLI" --code-index --code-index-out .project-wiki/all.sqlite > all-code-index.log
+node "$CLI" --code-files --code-index-out .project-wiki/all.sqlite > all-code-files.json
+! grep -q "dist/built.js" all-code-files.json
+! grep -q "vendor/vendor.js" all-code-files.json
 node "$CLI" --code-status > code-status.json
 grep -q "edges" code-status.json
 grep -q "stale_files" code-status.json
@@ -938,6 +972,7 @@ if node "$ROOT/benchmarks/project-metrics.js" --quick --sample-repo "$ROOT/bench
   exit 1
 fi
 grep -q "benchmark release gate failed: unstable" unstable-gate-comparison.log
+printf "dirty baseline smoke\n" > "$ROOT_DIRTY_PROBE"
 if node "$ROOT/benchmarks/project-metrics.js" --quick --save-baseline dirty-baseline.json > dirty-baseline.log 2>&1; then
   echo "benchmark baseline save should reject dirty worktrees by default" >&2
   exit 1

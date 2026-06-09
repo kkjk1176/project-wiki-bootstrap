@@ -61,6 +61,11 @@ if (args_1.unknownOptions.length > 0) {
     printUsage();
     process.exit(1);
 }
+if (args_1.unexpectedValueOptions.length > 0) {
+    console.error(`option${args_1.unexpectedValueOptions.length === 1 ? "" : "s"} do${args_1.unexpectedValueOptions.length === 1 ? "es" : ""} not take a value: ${args_1.unexpectedValueOptions.join(", ")}`);
+    printUsage();
+    process.exit(1);
+}
 if (args_1.missingValueOptions.length > 0) {
     console.error(`missing value for option${args_1.missingValueOptions.length === 1 ? "" : "s"}: ${args_1.missingValueOptions.join(", ")}`);
     printUsage();

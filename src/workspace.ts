@@ -65,11 +65,17 @@ export function upsertMarkedSection(relativePath: string, startMarker: string, e
   const current = read(relativePath);
   const start = current.indexOf(startMarker);
   const end = current.indexOf(endMarker);
+  if ((start >= 0) !== (end >= 0)) {
+    throw new Error(`${relativePath} has a malformed managed section: expected both ${startMarker} and ${endMarker}`);
+  }
   if (start >= 0 && end > start) {
     const next = `${current.slice(0, start).trimEnd()}\n\n${section.trim()}\n\n${current.slice(end + endMarker.length).trimStart()}`.trim() + "\n";
     if (next === current) return "exists";
     write(relativePath, next);
     return "updated";
+  }
+  if (start >= 0) {
+    throw new Error(`${relativePath} has a malformed managed section: ${endMarker} appears before ${startMarker}`);
   }
   write(relativePath, `${current.trimEnd()}\n\n${section.trim()}\n`);
   return "updated";

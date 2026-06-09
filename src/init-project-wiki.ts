@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { captureInboxMode, codeFilesMode, codeImpactMode, codeIndexFullMode, codeIndexIncrementalMode, codeIndexMode, codeParserMode, codeQueryMode, codeReportMode, codeReportSection, codeSearchSymbolMode, codeStatusMode, command, doctorMode, fixMode, glossaryMode, helpMode, issueCreateMode, issueDraftMode, linkCheckMode, lintMode, migrateMode, missingValueOptions, noGitConfigMode, pruneCheckMode, qualityCheckMode, queryTerm, refreshIndexMode, reviewMigrationMode, unknownCommand, unknownOptions } from "./args";
+import { captureInboxMode, codeFilesMode, codeImpactMode, codeIndexFullMode, codeIndexIncrementalMode, codeIndexMode, codeParserMode, codeQueryMode, codeReportMode, codeReportSection, codeSearchSymbolMode, codeStatusMode, command, doctorMode, fixMode, glossaryMode, helpMode, issueCreateMode, issueDraftMode, linkCheckMode, lintMode, migrateMode, missingValueOptions, noGitConfigMode, pruneCheckMode, qualityCheckMode, queryTerm, refreshIndexMode, reviewMigrationMode, unexpectedValueOptions, unknownCommand, unknownOptions } from "./args";
 import { hookScript, gitPrepareCommitMsgHook, gitWikiCommitTrailersScript, upsertClaudeHookConfig, upsertGitHooksPath, upsertHookConfig } from "./hooks";
 import { runInstallSkillMode } from "./install-skill";
 import { appendCaptureInbox, buildRefreshIndexBlock, runDoctorMode, runIssueCreateMode, runIssueDraftMode, runLinkCheckMode, runLintMode, runPruneCheckMode, runQualityCheckMode, runQueryMode } from "./modes";
@@ -65,6 +65,12 @@ if (unknownCommand) {
 
 if (unknownOptions.length > 0) {
   console.error(`unknown option${unknownOptions.length === 1 ? "" : "s"}: ${unknownOptions.join(", ")}`);
+  printUsage();
+  process.exit(1);
+}
+
+if (unexpectedValueOptions.length > 0) {
+  console.error(`option${unexpectedValueOptions.length === 1 ? "" : "s"} do${unexpectedValueOptions.length === 1 ? "es" : ""} not take a value: ${unexpectedValueOptions.join(", ")}`);
   printUsage();
   process.exit(1);
 }

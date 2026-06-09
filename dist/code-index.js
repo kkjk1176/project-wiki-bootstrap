@@ -275,7 +275,15 @@ function shouldIndexFile(relativePath) {
     const base = path.basename(relativePath);
     return ["Dockerfile", "Makefile", "package.json", "tsconfig.json"].includes(base);
 }
+function isIgnoredCodePath(relativePath) {
+    return (0, workspace_1.normalizePath)(relativePath)
+        .split("/")
+        .filter(Boolean)
+        .some((part) => ignoredDirectories.has(part));
+}
 function walkCodeFiles(relativePath, files = []) {
+    if (isIgnoredCodePath(relativePath))
+        return files.sort();
     const target = (0, workspace_1.abs)(relativePath);
     if (!fs.existsSync(target))
         return files;
@@ -316,6 +324,7 @@ function discoverCodeFiles(scopes) {
     const gitFiles = gitTrackedAndUnignoredFiles(scopes);
     const candidates = gitFiles ?? scopes.flatMap((scope) => walkCodeFiles(scope));
     return Array.from(new Set(candidates))
+        .filter((file) => !isIgnoredCodePath(file))
         .filter((file) => fs.existsSync((0, workspace_1.abs)(file)))
         .filter((file) => fs.statSync((0, workspace_1.abs)(file)).isFile())
         .filter((file) => shouldIndexFile(file))

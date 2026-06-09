@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.issueDraftTitle = exports.issueBodyFile = exports.captureCategory = exports.captureContent = exports.captureTitle = exports.codeIndexScopes = exports.codeParser = exports.codeIndexOutput = exports.codeSearchSymbol = exports.codeReportSection = exports.codeQuerySql = exports.codeImpactTarget = exports.queryTerm = exports.codeSearchSymbolMode = exports.codeQueryMode = exports.codeImpactMode = exports.codeParserMode = exports.codeFilesMode = exports.codeStatusMode = exports.codeReportMode = exports.codeIndexFullMode = exports.codeIndexIncrementalMode = exports.codeIndexMode = exports.noGitConfigMode = exports.reviewMigrationMode = exports.pruneCheckMode = exports.captureInboxMode = exports.refreshIndexMode = exports.issueDraftMode = exports.issueCreateMode = exports.glossaryMode = exports.fixMode = exports.doctorMode = exports.qualityCheckMode = exports.linkCheckMode = exports.lintMode = exports.migrateMode = exports.missingValueOptions = exports.unknownOptions = exports.args = exports.commandArgs = exports.command = exports.unknownCommand = exports.helpMode = exports.rawArgs = void 0;
+exports.issueDraftTitle = exports.issueBodyFile = exports.captureCategory = exports.captureContent = exports.captureTitle = exports.codeIndexScopes = exports.codeParser = exports.codeIndexOutput = exports.codeSearchSymbol = exports.codeReportSection = exports.codeQuerySql = exports.codeImpactTarget = exports.queryTerm = exports.codeSearchSymbolMode = exports.codeQueryMode = exports.codeImpactMode = exports.codeParserMode = exports.codeFilesMode = exports.codeStatusMode = exports.codeReportMode = exports.codeIndexFullMode = exports.codeIndexIncrementalMode = exports.codeIndexMode = exports.noGitConfigMode = exports.reviewMigrationMode = exports.pruneCheckMode = exports.captureInboxMode = exports.refreshIndexMode = exports.issueDraftMode = exports.issueCreateMode = exports.glossaryMode = exports.fixMode = exports.doctorMode = exports.qualityCheckMode = exports.linkCheckMode = exports.lintMode = exports.migrateMode = exports.missingValueOptions = exports.unexpectedValueOptions = exports.unknownOptions = exports.args = exports.commandArgs = exports.command = exports.unknownCommand = exports.helpMode = exports.rawArgs = void 0;
 exports.argValue = argValue;
 exports.argValues = argValues;
 exports.rawArgs = process.argv.slice(2);
@@ -94,6 +94,10 @@ exports.unknownOptions = Array.from(new Set(exports.commandArgs
     .filter((arg) => arg.startsWith("-"))
     .map(flagName)
     .filter((arg) => !knownFlags.has(arg))));
+exports.unexpectedValueOptions = Array.from(new Set(exports.commandArgs
+    .filter((arg) => arg.startsWith("--") && arg.includes("="))
+    .map(flagName)
+    .filter((arg) => flagsWithoutValues.has(arg))));
 exports.missingValueOptions = Array.from(flagsWithValues).filter((flag) => hasFlag(flag) && !flagHasValue(flag));
 exports.migrateMode = exports.args.has("--migrate") || exports.args.has("--adopt-existing");
 exports.lintMode = exports.args.has("--lint");

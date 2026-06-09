@@ -92,6 +92,10 @@ export const unknownOptions: string[] = Array.from(new Set(commandArgs
   .filter((arg) => arg.startsWith("-"))
   .map(flagName)
   .filter((arg) => !knownFlags.has(arg))));
+export const unexpectedValueOptions: string[] = Array.from(new Set(commandArgs
+  .filter((arg) => arg.startsWith("--") && arg.includes("="))
+  .map(flagName)
+  .filter((arg) => flagsWithoutValues.has(arg))));
 export const missingValueOptions: string[] = Array.from(flagsWithValues).filter((flag) => hasFlag(flag) && !flagHasValue(flag));
 
 export const migrateMode = args.has("--migrate") || args.has("--adopt-existing");

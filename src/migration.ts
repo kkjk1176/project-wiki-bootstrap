@@ -45,10 +45,20 @@ export function timestampSuffix(): string {
   return new Date().toISOString().replace(/[-:]/g, "").replace(/\..+$/, "").replace("T", "_");
 }
 
+function nextLegacyPath(): string {
+  if (!exists("wiki_legacy")) return "wiki_legacy";
+  const base = `wiki_legacy_${timestampSuffix()}`;
+  if (!exists(base)) return base;
+  for (let counter = 2; counter < 1000; counter += 1) {
+    const candidate = `${base}_${counter}`;
+    if (!exists(candidate)) return candidate;
+  }
+  throw new Error(`could not find an available wiki_legacy path for ${base}`);
+}
+
 export function prepareMigrationMode(): MigrationState {
   if (exists("wiki")) {
-    let legacyPath = "wiki_legacy";
-    if (exists(legacyPath)) legacyPath = `wiki_legacy_${timestampSuffix()}`;
+    const legacyPath = nextLegacyPath();
     fs.renameSync(abs("wiki"), abs(legacyPath));
     return { legacyPath, note: `moved wiki to ${legacyPath}` };
   }
