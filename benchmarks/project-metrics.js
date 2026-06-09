@@ -8,7 +8,7 @@ const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
 const cli = path.join(root, "dist", "init-project-wiki.js");
-const schemaVersion = 7;
+const schemaVersion = 8;
 
 const scales = {
   quick: {
@@ -18,6 +18,8 @@ const scales = {
     docsPerWorkspace: 3,
     codePackages: 4,
     filesPerCodePackage: 20,
+    scopedRouteAreas: 3,
+    scopedPagesPerArea: 18,
     readIterations: 10,
   },
   large: {
@@ -27,6 +29,8 @@ const scales = {
     docsPerWorkspace: 8,
     codePackages: 24,
     filesPerCodePackage: 50,
+    scopedRouteAreas: 12,
+    scopedPagesPerArea: 60,
     readIterations: 35,
   },
 };
@@ -778,6 +782,81 @@ function monorepoScenario(baseDir, scale) {
   };
 }
 
+function scopedRoutingScenario(baseDir, scale) {
+  const cwd = path.join(baseDir, "scoped-routing-large-project");
+  const bootstrapMs = bootstrapProject(cwd);
+  const subprocessOverheadMs = nodeSubprocessOverhead(cwd);
+  const generatedPages = scale.scopedRouteAreas * scale.scopedPagesPerArea;
+  const targetArea = "apps-app-0";
+  const targetRouter = "wiki/indexes/auto-apps-app-0.md";
+  const validationRelativePath = "wiki/canonical/apps-app-0-topic-0.md";
+  for (let areaIndex = 0; areaIndex < scale.scopedRouteAreas; areaIndex += 1) {
+    for (let pageIndex = 0; pageIndex < scale.scopedPagesPerArea; pageIndex += 1) {
+      const relativePath = path.join("wiki", "canonical", `apps-app-${areaIndex}-topic-${pageIndex}.md`).split(path.sep).join("/");
+      writeFile(path.join(cwd, relativePath), verboseProjectDoc(`Scoped App ${areaIndex} Topic ${pageIndex}`, 20 + (pageIndex % 4) * 6, "project-canonical", docsHeavyVariant(pageIndex)));
+    }
+  }
+  fs.appendFileSync(path.join(cwd, validationRelativePath), "\nBenchmark validation marker: scoped-router-needle.\n");
+  const refreshIndex = runNode([cli, "--refresh-index"], cwd);
+  const linkCheck = runNode([cli, "--link-check"], cwd);
+  const query = runNode([cli, "--query", "scoped-router-needle"], cwd);
+  const mainIndexText = fs.readFileSync(path.join(cwd, "wiki", "index.md"), "utf8");
+  const scopedIndexDir = path.join(cwd, "wiki", "indexes");
+  const scopedRouters = fs.existsSync(scopedIndexDir)
+    ? fs.readdirSync(scopedIndexDir).filter((file) => /^auto-[a-z0-9-]+\.md$/.test(file)).sort()
+    : [];
+  const targetRouterText = fs.existsSync(path.join(cwd, targetRouter)) ? fs.readFileSync(path.join(cwd, targetRouter), "utf8") : "";
+  expectBenchmark(refreshIndex.value.includes("wiki/index.md auto-discovered pages"), "scoped routing refresh-index did not report index update");
+  expectBenchmark(linkCheck.value.includes("0 warnings"), "scoped routing link-check had warnings");
+  expectBenchmark(query.value.includes(validationRelativePath), "scoped routing query did not return expected page");
+  expectBenchmark(scopedRouters.length >= scale.scopedRouteAreas, `scoped routing generated ${scopedRouters.length} scoped routers; expected at least ${scale.scopedRouteAreas}`);
+  expectBenchmark(mainIndexText.includes("[[indexes/auto-apps-app-0]]"), "main index did not link the expected scoped router");
+  expectBenchmark(targetRouterText.includes("[[canonical/apps-app-0-topic-0]]"), "scoped router did not link the expected target page");
+  expectBenchmark(mainIndexText.length <= 4500, `main index exceeded compact budget: ${mainIndexText.length} chars`);
+  return {
+    fixture_kind: "scoped-routing-large-project",
+    confidence: "high-for-scoped-router-generation-and-read-budget-claims",
+    assumptions: {
+      generated_wiki_pages: generatedPages,
+      scoped_route_areas: scale.scopedRouteAreas,
+      pages_per_area: scale.scopedPagesPerArea,
+      expected_scoped_router_count_min: scale.scopedRouteAreas,
+      target_area: targetArea,
+      target_router: targetRouter,
+      compact_main_index_budget_chars: 4500,
+    },
+    bootstrap_create_ms: bootstrapMs,
+    timing_scope: "node_cli_subprocess_e2e",
+    node_subprocess_overhead_ms: subprocessOverheadMs,
+    refresh_index_ms: refreshIndex.elapsed_ms,
+    refresh_index_operation_estimated_ms: estimatedOperationMs(refreshIndex.elapsed_ms, subprocessOverheadMs),
+    link_check_ms: linkCheck.elapsed_ms,
+    link_check_operation_estimated_ms: estimatedOperationMs(linkCheck.elapsed_ms, subprocessOverheadMs),
+    query_ms: query.elapsed_ms,
+    query_operation_estimated_ms: estimatedOperationMs(query.elapsed_ms, subprocessOverheadMs),
+    main_index_chars: mainIndexText.length,
+    scoped_router_count: scopedRouters.length,
+    scoped_router_files: scopedRouters.map((file) => `wiki/indexes/${file}`),
+    scoped_target_router_chars: targetRouterText.length,
+    retrieval_correctness: {
+      query: "scoped-router-needle",
+      expected_file: validationRelativePath,
+      expected_router: targetRouter,
+      query_returned_expected_file: query.value.includes(validationRelativePath),
+      targeted_context_expected_files: [targetRouter, validationRelativePath],
+      correctness_status: "passed",
+    },
+    validations: [
+      passedValidation(`refresh-index generated ${scopedRouters.length} scoped routers`),
+      passedValidation("main index stayed within compact budget"),
+      passedValidation(`target scoped router linked ${validationRelativePath}`),
+      passedValidation("link-check completed with 0 warnings"),
+      passedValidation(`query returned ${validationRelativePath}`),
+    ],
+    ...contextSavings(cwd, scale.readIterations, [targetRouter, validationRelativePath]),
+  };
+}
+
 function codeHeavyScenario(baseDir, scale) {
   const cwd = path.join(baseDir, "code-heavy-large-project");
   const bootstrapMs = bootstrapProject(cwd);
@@ -1061,6 +1140,8 @@ function compareNumber(previous, current) {
 const regressionThresholds = {
   docs_query_ms_delta_percent: { direction: "max", threshold: 10 },
   monorepo_doctor_ms_delta_percent: { direction: "max", threshold: 10 },
+  scoped_refresh_index_ms_delta_percent: { direction: "max", threshold: 15 },
+  scoped_main_index_chars_delta_percent: { direction: "max", threshold: 5 },
   code_index_ms_delta_percent: { direction: "max", threshold: 10 },
   code_index_throughput_delta_percent: { direction: "min", threshold: -10 },
   incremental_index_ms_delta_percent: { direction: "max", threshold: 15 },
@@ -1080,6 +1161,9 @@ const claimMetricRules = [
   { id: "monorepo.query_ms", scenario: "monorepo-large-project", path: ["query_ms"], max_cv_percent: 12, max_range_ms: 20, claim: "monorepo wiki query latency" },
   { id: "monorepo.targeted_context.avg_read_ms", scenario: "monorepo-large-project", path: ["targeted_context", "avg_read_ms"], max_cv_percent: 15, max_range_ms: 2, claim: "monorepo targeted-context read timing" },
   { id: "monorepo.full_wiki.avg_read_ms", scenario: "monorepo-large-project", path: ["full_wiki", "avg_read_ms"], max_cv_percent: 15, max_range_ms: 2, claim: "monorepo full-wiki read timing" },
+  { id: "scoped.refresh_index_ms", scenario: "scoped-routing-large-project", path: ["refresh_index_ms"], max_cv_percent: 15, max_range_ms: 60, claim: "scoped-router refresh-index latency" },
+  { id: "scoped.targeted_context.avg_read_ms", scenario: "scoped-routing-large-project", path: ["targeted_context", "avg_read_ms"], max_cv_percent: 15, max_range_ms: 2, claim: "scoped-router targeted-context read timing" },
+  { id: "scoped.full_wiki.avg_read_ms", scenario: "scoped-routing-large-project", path: ["full_wiki", "avg_read_ms"], max_cv_percent: 15, max_range_ms: 2, claim: "scoped-router full-wiki read timing" },
   { id: "code.code_index_ms", scenario: "code-heavy-large-project", path: ["code_index_ms"], max_cv_percent: 12, max_range_ms: 75, claim: "full code-index latency" },
   { id: "code.incremental_index_ms", scenario: "code-heavy-large-project", path: ["incremental_index_ms"], max_cv_percent: 15, max_range_ms: 35, claim: "incremental code-index latency" },
   { id: "code.architecture_report_ms", scenario: "code-heavy-large-project", path: ["architecture_report_ms"], max_cv_percent: 15, max_range_ms: 35, claim: "architecture report latency" },
@@ -1241,6 +1325,8 @@ function compareReport(current, baseline, options = {}) {
   const docsBaseline = scenarioByKind(baseline, "docs-heavy-large-project");
   const monorepoCurrent = scenarioByKind(current, "monorepo-large-project");
   const monorepoBaseline = scenarioByKind(baseline, "monorepo-large-project");
+  const scopedCurrent = scenarioByKind(current, "scoped-routing-large-project");
+  const scopedBaseline = scenarioByKind(baseline, "scoped-routing-large-project");
   const codeCurrent = scenarioByKind(current, "code-heavy-large-project");
   const codeBaseline = scenarioByKind(baseline, "code-heavy-large-project");
   const sampleRepoDeltas = sampleRepoComparisonDeltas(current, baseline);
@@ -1251,6 +1337,9 @@ function compareReport(current, baseline, options = {}) {
     docs_query_ms_delta_percent: compareNumber(docsBaseline.query_ms, docsCurrent.query_ms),
     monorepo_estimated_token_avoidance_delta_percent: round((monorepoCurrent.savings?.estimated_token_avoidance_percent || 0) - (monorepoBaseline.savings?.estimated_token_avoidance_percent || 0)),
     monorepo_doctor_ms_delta_percent: compareNumber(monorepoBaseline.doctor_ms, monorepoCurrent.doctor_ms),
+    scoped_estimated_token_avoidance_delta_percent: round((scopedCurrent.savings?.estimated_token_avoidance_percent || 0) - (scopedBaseline.savings?.estimated_token_avoidance_percent || 0)),
+    scoped_refresh_index_ms_delta_percent: compareNumber(scopedBaseline.refresh_index_ms, scopedCurrent.refresh_index_ms),
+    scoped_main_index_chars_delta_percent: compareNumber(scopedBaseline.main_index_chars, scopedCurrent.main_index_chars),
     code_index_ms_delta_percent: compareNumber(codeBaseline.code_index_ms, codeCurrent.code_index_ms),
     code_index_throughput_delta_percent: compareNumber(codeBaseline.code_index_files_per_second, codeCurrent.code_index_files_per_second),
     incremental_index_ms_delta_percent: compareNumber(codeBaseline.incremental_index_ms, codeCurrent.incremental_index_ms),
@@ -1325,6 +1414,7 @@ function formatDelta(value) {
 function markdownSummary(report) {
   const docs = scenarioByKind(report, "docs-heavy-large-project");
   const monorepo = scenarioByKind(report, "monorepo-large-project");
+  const scoped = scenarioByKind(report, "scoped-routing-large-project");
   const code = scenarioByKind(report, "code-heavy-large-project");
   const sampleRepos = report.scenarios.filter(isSampleRepoScenario);
   const comparison = report.comparison;
@@ -1353,6 +1443,9 @@ ${sampleDeltaRows}
 | Docs query time | ${formatDelta(comparison.docs_query_ms_delta_percent)} |
 | Monorepo targeted-context token estimate | ${formatDelta(comparison.monorepo_estimated_token_avoidance_delta_percent)} |
 | Monorepo doctor time | ${formatDelta(comparison.monorepo_doctor_ms_delta_percent)} |
+| Scoped-router targeted-context token estimate | ${formatDelta(comparison.scoped_estimated_token_avoidance_delta_percent)} |
+| Scoped-router refresh-index time | ${formatDelta(comparison.scoped_refresh_index_ms_delta_percent)} |
+| Scoped-router main index size | ${formatDelta(comparison.scoped_main_index_chars_delta_percent)} |
 | Code index time | ${formatDelta(comparison.code_index_ms_delta_percent)} |
 | Code index throughput | ${formatDelta(comparison.code_index_throughput_delta_percent)} |
 | Incremental index time | ${formatDelta(comparison.incremental_index_ms_delta_percent)} |
@@ -1381,6 +1474,9 @@ Generated: ${report.generated_at}
 | Retrieval correctness checks | ${report.summary.retrieval_correctness_passed}/${report.summary.retrieval_correctness_checks} passed |
 | Targeted-context missing evidence files | ${report.summary.targeted_context_evidence_missing} |
 | Startup/index-only missing evidence files | ${report.summary.startup_index_only_evidence_missing} |
+| Scoped-router refresh-index time | ${report.summary.scoped_refresh_index_ms}ms |
+| Scoped-router generated routers | ${report.summary.scoped_router_count} |
+| Scoped-router main index chars | ${report.summary.scoped_main_index_chars} |
 | Code-index time | ${report.summary.code_index_ms}ms |
 | Code-index files | ${report.summary.code_index_files} |
 | Code-index throughput | ${report.summary.code_index_files_per_second} files/sec |
@@ -1402,6 +1498,7 @@ ${sampleSummaryRows}| Benchmark runs | ${report.measurement.runs} |
 | --- | ---: | ---: | ---: | ---: |
 | Docs-heavy wiki | ${docs.assumptions?.generated_wiki_pages || 0} pages | ${docs.savings?.estimated_token_avoidance_percent || 0}% | ${docs.savings?.read_time_reduction_percent || 0}% | query ${docs.query_ms || 0}ms |
 | Monorepo wiki | ${monorepo.assumptions?.generated_wiki_pages || 0} pages | ${monorepo.savings?.estimated_token_avoidance_percent || 0}% | ${monorepo.savings?.read_time_reduction_percent || 0}% | doctor ${monorepo.doctor_ms || 0}ms |
+| Scoped router wiki | ${scoped.assumptions?.generated_wiki_pages || 0} pages | ${scoped.savings?.estimated_token_avoidance_percent || 0}% | ${scoped.savings?.read_time_reduction_percent || 0}% | refresh ${scoped.refresh_index_ms || 0}ms, routers ${scoped.scoped_router_count || 0}, index ${scoped.main_index_chars || 0} chars |
 | Code-heavy mixed index | ${code.code_index_files || 0} files | n/a | n/a | full ${code.code_index_ms || 0}ms, incremental ${code.incremental_index_ms || 0}ms, report ${code.architecture_report_ms || 0}ms |
 ${sampleScenarioRows}
 ${comparisonRows}
@@ -1438,6 +1535,8 @@ function loadTrendInput(filePath) {
 const trendMetricRules = [
   { id: "min_estimated_token_avoidance_percent", path: ["summary", "min_estimated_token_avoidance_percent"], direction: "higher" },
   { id: "median_estimated_token_avoidance_percent", path: ["summary", "median_estimated_token_avoidance_percent"], direction: "higher" },
+  { id: "scoped_refresh_index_ms", path: ["summary", "scoped_refresh_index_ms"], direction: "lower" },
+  { id: "scoped_main_index_chars", path: ["summary", "scoped_main_index_chars"], direction: "lower" },
   { id: "code_index_ms", path: ["summary", "code_index_ms"], direction: "lower" },
   { id: "code_index_files_per_second", path: ["summary", "code_index_files_per_second"], direction: "higher" },
   { id: "incremental_index_ms", path: ["summary", "code_index_incremental_ms"], direction: "lower" },
@@ -1555,6 +1654,10 @@ const scenarioTimingPaths = [
   ["node_subprocess_overhead_ms"],
   ["doctor_ms"],
   ["doctor_operation_estimated_ms"],
+  ["refresh_index_ms"],
+  ["refresh_index_operation_estimated_ms"],
+  ["link_check_ms"],
+  ["link_check_operation_estimated_ms"],
   ["query_ms"],
   ["query_operation_estimated_ms"],
   ["code_index_ms"],
@@ -1652,6 +1755,7 @@ function suiteSummary(scenarios) {
   const tokenSavings = wikiScenarios.map((scenario) => scenario.savings.estimated_token_avoidance_percent);
   const readSavings = wikiScenarios.map((scenario) => scenario.savings.read_time_reduction_percent);
   const codeScenario = scenarios.find((scenario) => scenario.fixture_kind === "code-heavy-large-project") || {};
+  const scopedScenario = scenarios.find((scenario) => scenario.fixture_kind === "scoped-routing-large-project") || {};
   const sampleRepoScenarios = scenarios.filter(isSampleRepoScenario);
   const sampleRepoIndexTimes = sampleRepoScenarios.map((scenario) => scenario.sample_repo_code_index_ms).filter((value) => typeof value === "number");
   const sampleRepoReportTimes = sampleRepoScenarios.map((scenario) => scenario.sample_repo_architecture_report_ms).filter((value) => typeof value === "number");
@@ -1669,6 +1773,10 @@ function suiteSummary(scenarios) {
     min_read_time_reduction_percent: round(Math.min(...readSavings)),
     median_read_time_reduction_percent: round(median(readSavings)),
     total_wiki_pages: wikiScenarios.reduce((sum, scenario) => sum + scenario.full_wiki.file_count, 0),
+    scoped_refresh_index_ms: scopedScenario.refresh_index_ms || 0,
+    scoped_router_count: scopedScenario.scoped_router_count || 0,
+    scoped_main_index_chars: scopedScenario.main_index_chars || 0,
+    scoped_target_router_chars: scopedScenario.scoped_target_router_chars || 0,
     code_index_ms: codeScenario.code_index_ms || 0,
     code_index_files: codeScenario.code_index_files || 0,
     code_index_files_per_second: codeScenario.code_index_files_per_second || 0,
@@ -1721,6 +1829,7 @@ function runBenchmark() {
       const scenariosForRun = [
         docsHeavyScenario(runRoot, scale),
         monorepoScenario(runRoot, scale),
+        scopedRoutingScenario(runRoot, scale),
         codeHeavyScenario(runRoot, scale),
       ];
       for (const sampleRepo of sampleRepos) scenariosForRun.push(sampleRepoScenario(runRoot, sampleRepo));
@@ -1761,6 +1870,9 @@ function runBenchmark() {
       large_project_assumptions: {
         docs_heavy_pages: scale.docsHeavyPages,
         monorepo_workspaces: scale.monorepoApps + scale.monorepoPackages,
+        scoped_route_pages: scale.scopedRouteAreas * scale.scopedPagesPerArea,
+        scoped_route_areas: scale.scopedRouteAreas,
+        scoped_pages_per_area: scale.scopedPagesPerArea,
         code_heavy_files: scale.codePackages * (scale.filesPerCodePackage + 9),
         code_heavy_ts_files: scale.codePackages * scale.filesPerCodePackage,
         code_heavy_mixed_file_kinds: ["ts", "test-ts", "js", "tsx", "go", "python", "yaml", "json", "package-json", "package-lock"],
@@ -1776,7 +1888,8 @@ function runBenchmark() {
         "Maintainer benchmark for release evidence, not a public CLI user workflow.",
         "Default scale is large; smoke tests use --quick only to validate report shape.",
         "Large scale uses one discarded warmup run and repeated measured runs by default; scenario metrics are medians and include timing dispersion statistics.",
-        "Large scale covers docs-heavy wiki, monorepo wiki, and code-heavy mixed JS/TS/TSX/config index scenarios.",
+        "Large scale covers docs-heavy wiki, monorepo wiki, scoped-router wiki, and code-heavy mixed JS/TS/TSX/config index scenarios.",
+        "Scoped routing scenario measures refresh-index generation of wiki/indexes/auto-*.md routers and compact main-index size.",
         "Code-heavy scenario also measures architecture and ownership report generation from the code evidence index.",
         "Use repeated --sample-repo <path> arguments to add explicit local repository copies as observational validation evidence.",
         "Standard repo-local sample paths live under benchmarks/samples and are used by CI benchmark gates.",
