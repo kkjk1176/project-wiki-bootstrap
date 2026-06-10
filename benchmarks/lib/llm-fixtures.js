@@ -2,6 +2,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const childProcess = require("node:child_process");
 
 const scales = {
   small: {
@@ -91,33 +92,28 @@ Current benchmark evidence policy requires with-vs-without Project Librarian com
   }
 }
 
-function materializeWithProjectLibrarian(root, scaleName) {
+function runProjectLibrarian(cliPath, args, cwd) {
+  if (!cliPath || !fs.existsSync(cliPath)) {
+    throw new Error("missing Project Librarian CLI; run npm run build before benchmark:llm:dry-run");
+  }
+  childProcess.execFileSync(process.execPath, [cliPath, ...args], {
+    cwd,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+}
+
+function materializeWithProjectLibrarian(root, scaleName, cliPath) {
   const scale = scales[scaleName];
   materializeBaseRepo(root, scaleName, "with_project_librarian");
-  writeFile(path.join(root, "AGENTS.md"), "# Agent Instructions\n\nStart with wiki/startup.md and wiki/index.md.\n");
-  writeFile(path.join(root, ".codex", "hooks.json"), `${JSON.stringify({
-    hooks: {
-      SessionStart: [
-        {
-          matcher: "startup|resume|clear",
-          hooks: [{ type: "command", command: "node .codex/hooks/wiki-session-start.js" }],
-        },
-      ],
-    },
-  }, null, 2)}\n`);
-  writeFile(path.join(root, ".codex", "hooks", "wiki-session-start.js"), "console.log('wiki/startup.md\\nwiki/index.md');\n");
-  writeFile(path.join(root, "wiki", "startup.md"), "# Startup Context\n\nUse wiki/index.md to route to project truth.\n");
-  writeFile(path.join(root, "wiki", "index.md"), "# Wiki Index\n\n- [[canonical/benchmark-and-release-evidence]]\n");
-  writeFile(path.join(root, "wiki", "canonical", "benchmark-and-release-evidence.md"), "# Benchmark And Release Evidence\n\nActual LLM evidence compares with and without Project Librarian across small, medium, and large fixtures.\n");
-  writeFile(path.join(root, "wiki", "decisions", "log.md"), "# Decision Log\n\n- 2026-06-10 | metrics | actual LLM benchmark comparison adopted.\n");
-  writeFile(path.join(root, ".project-wiki", "code-evidence.sqlite"), "fixture placeholder\n");
+  runProjectLibrarian(cliPath, ["--no-git-config"], root);
 
-  if (scale.wikiPages > 100) {
-    writeFile(path.join(root, "wiki", "indexes", "auto-packages.md"), "# Package Routes\n\nGenerated scoped router fixture.\n");
-  }
   for (let index = 0; index < scale.wikiPages; index += 1) {
     writeFile(path.join(root, "wiki", "canonical", `fixture-page-${index}.md`), planningPage(index, scaleName));
   }
+  writeFile(path.join(root, "wiki", "canonical", "benchmark-and-release-evidence.md"), "# Benchmark And Release Evidence\n\nActual LLM evidence compares with and without Project Librarian across small, medium, and large fixtures.\n");
+  writeFile(path.join(root, "wiki", "decisions", "log.md"), "# Decision Log\n\n- 2026-06-10 | metrics | actual LLM benchmark comparison adopted.\n");
+  runProjectLibrarian(cliPath, ["--refresh-index"], root);
 }
 
 function materializeWithoutProjectLibrarian(root, scaleName) {
@@ -160,17 +156,17 @@ function buildScenarioManifest({ fixtureRoot, scale, condition, taskFamily }) {
   };
 }
 
-function materializeFixturePair(fixtureRoot, scale) {
+function materializeFixturePair(fixtureRoot, scale, cliPath) {
   const withRoot = path.join(fixtureRoot, scale, "with_project_librarian");
   const withoutRoot = path.join(fixtureRoot, scale, "without_project_librarian");
-  materializeWithProjectLibrarian(withRoot, scale);
+  materializeWithProjectLibrarian(withRoot, scale, cliPath);
   materializeWithoutProjectLibrarian(withoutRoot, scale);
 }
 
-function buildManifest({ fixtureRoot, selectedScales = Object.keys(scales), selectedTasks = Object.keys(taskFamilies) }) {
+function buildManifest({ fixtureRoot, cliPath, selectedScales = Object.keys(scales), selectedTasks = Object.keys(taskFamilies) }) {
   const scenarios = [];
   for (const scale of selectedScales) {
-    materializeFixturePair(fixtureRoot, scale);
+    materializeFixturePair(fixtureRoot, scale, cliPath);
     for (const condition of conditions) {
       for (const taskFamily of selectedTasks) {
         scenarios.push(buildScenarioManifest({ fixtureRoot, scale, condition, taskFamily }));

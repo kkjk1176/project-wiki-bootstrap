@@ -7,6 +7,7 @@ const path = require("node:path");
 const { buildManifest, scales, taskFamilies } = require("./lib/llm-fixtures");
 
 const root = path.resolve(__dirname, "..");
+const cli = path.join(root, "dist", "init-project-wiki.js");
 
 function fail(message) {
   console.error(message);
@@ -60,7 +61,7 @@ function main() {
     fail("measured Codex execution is not implemented yet; run --dry-run for the current fixture/manifest phase");
   }
 
-  const manifest = buildManifest({ fixtureRoot, selectedScales, selectedTasks });
+  const manifest = buildManifest({ fixtureRoot, cliPath: cli, selectedScales, selectedTasks });
   writeJson(out, manifest);
   console.log(JSON.stringify({
     status: "ok",

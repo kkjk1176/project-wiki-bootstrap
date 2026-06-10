@@ -21,6 +21,20 @@ function validateSampleJsonl() {
   assert.equal(metrics.error_event_count, 0);
 }
 
+function validateReasoningTokenTotal() {
+  const metrics = summarizeJsonl([
+    JSON.stringify({
+      type: "turn.completed",
+      usage: {
+        input_tokens: 100,
+        output_tokens: 25,
+        reasoning_output_tokens: 10,
+      },
+    }),
+  ].join("\n"), { wall_ms: 1000 });
+  assert.equal(metrics.total_tokens, 125);
+}
+
 function validateReport(reportPath) {
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   assert.equal(report.schema_version, 1);
@@ -32,5 +46,6 @@ function validateReport(reportPath) {
 
 const reportPath = process.argv[2];
 validateSampleJsonl();
+validateReasoningTokenTotal();
 if (reportPath) validateReport(path.resolve(reportPath));
 console.log("codex llm benchmark smoke ok");

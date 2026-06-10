@@ -97,19 +97,13 @@ function summarizeEvents(events, timing = {}) {
   }
 
   if (metrics.total_tokens === 0) {
-    metrics.total_tokens = metrics.input_tokens + metrics.output_tokens + metrics.reasoning_output_tokens;
+    metrics.total_tokens = metrics.input_tokens + metrics.output_tokens;
   }
 
   if (metrics.wall_ms > 0) {
     metrics.tokens_per_second = Math.round((metrics.output_tokens / (metrics.wall_ms / 1000)) * 1000) / 1000;
   }
 
-  if (events.length > 0 && metrics.command_event_count === 0) {
-    metrics.unavailable_event_fields.push("command_event_count");
-  }
-  if (events.length > 0 && metrics.mcp_event_count === 0) {
-    metrics.unavailable_event_fields.push("mcp_event_count");
-  }
   if (events.length > 0 && !events.some((event) => usageFromEvent(event))) {
     metrics.unavailable_event_fields.push("usage");
   }
