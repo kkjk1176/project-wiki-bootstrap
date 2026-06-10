@@ -71,7 +71,7 @@ npm run benchmark:llm:parse-smoke
 node tests/validators/codex-llm-benchmark-smoke.js benchmarks/llm/samples/codex-measured-report.json
 ```
 
-Measured Codex execution is intentionally gated behind `--allow-codex-run` and uses `codex exec --json --ephemeral --sandbox read-only`. By default it runs one with/without pair to preserve comparison validity while limiting subscription quota use; pass `--max-scenarios`, `--runs`, and `--warmup-runs` deliberately when expanding coverage. Report `median` values are computed from correctness-passed runs only; `median_all_runs` is retained for audit when a run fails or needs review. Raw event counts and normalized invocation counts are reported separately so start/completed JSONL pairs do not inflate tool-call claims.
+Measured Codex execution is intentionally gated behind `--allow-codex-run` and uses `codex exec --json --ephemeral --sandbox read-only`. By default it runs one with/without pair to preserve comparison validity while limiting subscription quota use; pass `--max-scenarios`, `--runs`, and `--warmup-runs` deliberately when expanding coverage. Report `median` values are computed only from claimable runs: correctness must pass, usage/model/final-text fields must be present, token counts and wall time must be positive, and the run must resolve to exactly one model. `median_all_runs` is retained for audit when a run fails, needs review, or lacks claimable measurement fields. Raw event counts and normalized invocation counts are reported separately so start/completed JSONL pairs do not inflate tool-call claims.
 
 ```sh
 npm run benchmark:llm -- --allow-codex-run --scales small --tasks decision_lookup --max-scenarios 2 --runs 1 --warmup-runs 0

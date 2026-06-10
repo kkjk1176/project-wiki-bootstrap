@@ -36,6 +36,64 @@ function passedRuns(runs) {
   return runs.filter((run) => run.correctness.status === "passed");
 }
 
+function measurementChecks(run) {
+  const metrics = run.metrics || {};
+  const unavailable = Array.isArray(metrics.unavailable_event_fields) ? metrics.unavailable_event_fields : [];
+  const models = Array.isArray(metrics.models) ? metrics.models : [];
+  return [
+    {
+      name: "correctness passed",
+      passed: run.correctness?.status === "passed",
+    },
+    {
+      name: "usage available",
+      passed: !unavailable.includes("usage") && metrics.codex_turn_count > 0,
+    },
+    {
+      name: "input tokens positive",
+      passed: metrics.input_tokens > 0,
+    },
+    {
+      name: "output tokens positive",
+      passed: metrics.output_tokens > 0,
+    },
+    {
+      name: "total tokens positive",
+      passed: metrics.total_tokens > 0,
+    },
+    {
+      name: "wall time positive",
+      passed: metrics.wall_ms > 0,
+    },
+    {
+      name: "model available",
+      passed: !unavailable.includes("model") && models.length > 0,
+    },
+    {
+      name: "single model available",
+      passed: !unavailable.includes("single_model") && models.length === 1 && metrics.model === models[0],
+    },
+    {
+      name: "final text available",
+      passed: !unavailable.includes("final_text") && typeof metrics.final_text === "string" && metrics.final_text.length > 0,
+    },
+  ];
+}
+
+function measurementStatus(run) {
+  const checks = measurementChecks(run);
+  const failed = checks.filter((check) => !check.passed);
+  return {
+    status: failed.length === 0 ? "claimable" : "unclaimable",
+    reason: failed.map((check) => check.name).join("; "),
+    checks,
+  };
+}
+
+function claimableRuns(runs) {
+  return runs.filter((run) => measurementStatus(run).status === "claimable");
+}
+
 function scenarioPairKey(scenario) {
   return `${scenario.scale}\0${scenario.task_family}`;
 }
@@ -58,7 +116,20 @@ function selectPairedScenarios(scenarios, maxScenarios, conditions) {
   return selected;
 }
 
+function completePairCount(scenarios, conditions) {
+  const groups = new Map();
+  for (const scenario of scenarios) {
+    const key = scenarioPairKey(scenario);
+    if (!groups.has(key)) groups.set(key, new Set());
+    groups.get(key).add(scenario.condition);
+  }
+  return [...groups.values()].filter((groupConditions) => conditions.every((condition) => groupConditions.has(condition))).length;
+}
+
 module.exports = {
+  claimableRuns,
+  completePairCount,
+  measurementStatus,
   medianMetrics,
   metricFields,
   passedRuns,

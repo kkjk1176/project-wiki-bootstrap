@@ -7,10 +7,12 @@ const childProcess = require("node:child_process");
 const assert = require("node:assert/strict");
 const { summarizeJsonl } = require("../../benchmarks/lib/codex-jsonl");
 const { evaluateCorrectness } = require("../../benchmarks/lib/llm-correctness");
-const { medianMetrics, passedRuns } = require("../../benchmarks/lib/llm-report");
+const { conditions } = require("../../benchmarks/lib/llm-fixtures");
+const { claimableRuns, completePairCount, measurementStatus, medianMetrics } = require("../../benchmarks/lib/llm-report");
 
 const root = path.resolve(__dirname, "..", "..");
 const sampleFinalText = "2026-06-10 metrics decision in wiki/decisions/log.md documents Project Librarian benchmark evidence.";
+const controlSampleFinalText = "2026-06-10 metrics decision in docs/decisions.md documents benchmark evidence from README.md control docs.";
 
 function validateSampleJsonl() {
   const samplePath = path.join(root, "benchmarks", "llm", "samples", "codex-turn-completed.jsonl");
@@ -29,6 +31,24 @@ function validateSampleJsonl() {
   assert.deepEqual(metrics.models, ["gpt-5.5"]);
   assert.equal(metrics.final_text, sampleFinalText);
   assert.equal(metrics.error_event_count, 0);
+}
+
+function validateControlSampleJsonl() {
+  const samplePath = path.join(root, "benchmarks", "llm", "samples", "codex-turn-completed-control.jsonl");
+  const metrics = summarizeJsonl(fs.readFileSync(samplePath, "utf8"), { wall_ms: 2000 });
+  assert.equal(metrics.input_tokens, 24763);
+  assert.equal(metrics.output_tokens, 122);
+  assert.equal(metrics.total_tokens, 24885);
+  assert.equal(metrics.model, "gpt-5.5");
+  assert.deepEqual(metrics.models, ["gpt-5.5"]);
+  assert.equal(metrics.final_text, controlSampleFinalText);
+  const correctness = evaluateCorrectness({
+    taskFamily: "decision_lookup",
+    condition: "without_project_librarian",
+    finalText: metrics.final_text,
+    fileChangeCount: metrics.file_change_event_count,
+  });
+  assert.equal(correctness.status, "passed");
 }
 
 function validateReasoningTokenTotal() {
@@ -79,10 +99,13 @@ function validateReport(reportPath) {
   assert(Array.isArray(report.scenarios));
   assert(report.scenarios.length > 0);
   assert.equal(report.configuration.selected_scenarios, report.scenarios.length);
+  assert(report.configuration.max_scenarios >= conditions.length);
 
   let passedCorrectnessCount = 0;
   let needsReviewCount = 0;
   let failedCorrectnessCount = 0;
+  let claimableScenarioCount = 0;
+  let unclaimableScenarioCount = 0;
 
   for (const scenario of report.scenarios) {
     assert(Array.isArray(scenario.runs));
@@ -93,6 +116,7 @@ function validateReport(reportPath) {
     assert.equal(scenario.correctness.length, scenario.runs.length);
     assert.deepEqual(scenario.raw_jsonl_paths, scenario.runs.map((run) => run.raw_jsonl_path));
     assert(Number.isInteger(scenario.passed_run_count));
+    assert(Number.isInteger(scenario.claimable_run_count));
     assert(Array.isArray(scenario.models));
     if (scenario.models.length === 1) assert.equal(scenario.model, scenario.models[0]);
     if (scenario.models.length !== 1) assert.equal(scenario.model, null);
@@ -121,26 +145,35 @@ function validateReport(reportPath) {
       });
       assert.deepEqual(scenario.correctness[index], expectedCorrectness);
       assert.deepEqual(run.correctness, expectedCorrectness);
+      assert.deepEqual(run.measurement, measurementStatus(run));
       if (expectedCorrectness.status === "passed") {
         passedRunCount += 1;
         assert(expectedCorrectness.checks.length > 0);
       }
     }
 
+    const actualClaimableRuns = claimableRuns(scenario.runs);
     assert.deepEqual(scenario.models, [...runModels]);
     assert.equal(scenario.passed_run_count, passedRunCount);
+    assert.equal(scenario.claimable_run_count, actualClaimableRuns.length);
     assert.deepEqual(scenario.median_all_runs, medianMetrics(scenario.runs));
-    assert.deepEqual(scenario.median, passedRunCount > 0 ? medianMetrics(passedRuns(scenario.runs)) : null);
-    if (passedRunCount === 0) assert.equal(scenario.median, null);
+    assert.deepEqual(scenario.median, actualClaimableRuns.length > 0 ? medianMetrics(actualClaimableRuns) : null);
+    if (actualClaimableRuns.length === 0) assert.equal(scenario.median, null);
     if (scenario.correctness.every((item) => item.status === "passed")) passedCorrectnessCount += 1;
     if (scenario.correctness.some((item) => item.status === "needs_review")) needsReviewCount += 1;
     if (scenario.correctness.some((item) => item.status === "failed")) failedCorrectnessCount += 1;
+    if (actualClaimableRuns.length > 0) claimableScenarioCount += 1;
+    if (actualClaimableRuns.length === 0) unclaimableScenarioCount += 1;
   }
 
   assert.equal(report.summary.scenario_count, report.scenarios.length);
+  assert.equal(report.summary.comparison_pair_count, completePairCount(report.scenarios, conditions));
+  assert.equal(report.summary.comparison_pair_count * conditions.length, report.scenarios.length);
   assert.equal(report.summary.passed_correctness_count, passedCorrectnessCount);
   assert.equal(report.summary.needs_review_count, needsReviewCount);
   assert.equal(report.summary.failed_correctness_count, failedCorrectnessCount);
+  assert.equal(report.summary.claimable_scenario_count, claimableScenarioCount);
+  assert.equal(report.summary.unclaimable_scenario_count, unclaimableScenarioCount);
 }
 
 function validateCorrectness() {
@@ -161,6 +194,39 @@ function validateCorrectness() {
   assert.equal(needsReview.status, "needs_review");
 }
 
+function validateMeasurementClaimability() {
+  const correctness = {
+    status: "passed",
+    reason: "",
+    checks: [{ name: "synthetic correctness", passed: true }],
+  };
+  const unclaimable = measurementStatus({
+    correctness,
+    metrics: summarizeJsonl(JSON.stringify({
+      type: "assistant.message",
+      message: sampleFinalText,
+    }), { wall_ms: 1000 }),
+  });
+  assert.equal(unclaimable.status, "unclaimable");
+  assert(unclaimable.reason.includes("usage available"));
+  assert(unclaimable.reason.includes("model available"));
+
+  const claimable = measurementStatus({
+    correctness,
+    metrics: summarizeJsonl(JSON.stringify({
+      type: "turn.completed",
+      model: "gpt-5.5",
+      usage: {
+        input_tokens: 10,
+        output_tokens: 5,
+        total_tokens: 15,
+      },
+      message: sampleFinalText,
+    }), { wall_ms: 1000 }),
+  });
+  assert.equal(claimable.status, "claimable");
+}
+
 function validateCliArgumentFailures() {
   for (const args of [
     ["benchmarks/codex-llm-metrics.js", "--dry-run", "--scales", ","],
@@ -178,9 +244,11 @@ function validateCliArgumentFailures() {
 
 const reportPath = process.argv[2];
 validateSampleJsonl();
+validateControlSampleJsonl();
 validateReasoningTokenTotal();
 validateInvocationCounts();
 validateCorrectness();
+validateMeasurementClaimability();
 validateCliArgumentFailures();
 if (reportPath) validateReport(path.resolve(reportPath));
 console.log("codex llm benchmark smoke ok");

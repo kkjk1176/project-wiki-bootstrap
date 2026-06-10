@@ -21,14 +21,17 @@
     "runs": 1,
     "warmup_runs": 1,
     "max_scenarios": 2,
-    "selected_scenarios": 1,
+    "selected_scenarios": 2,
     "total_manifest_scenarios": 30
   },
   "summary": {
-    "scenario_count": 1,
-    "passed_correctness_count": 1,
+    "scenario_count": 2,
+    "comparison_pair_count": 1,
+    "passed_correctness_count": 2,
     "needs_review_count": 0,
-    "failed_correctness_count": 0
+    "failed_correctness_count": 0,
+    "claimable_scenario_count": 2,
+    "unclaimable_scenario_count": 0
   },
   "scenarios": [
     {
@@ -111,6 +114,48 @@
                 "passed": true
               }
             ]
+          },
+          "measurement": {
+            "status": "claimable",
+            "reason": "",
+            "checks": [
+              {
+                "name": "correctness passed",
+                "passed": true
+              },
+              {
+                "name": "usage available",
+                "passed": true
+              },
+              {
+                "name": "input tokens positive",
+                "passed": true
+              },
+              {
+                "name": "output tokens positive",
+                "passed": true
+              },
+              {
+                "name": "total tokens positive",
+                "passed": true
+              },
+              {
+                "name": "wall time positive",
+                "passed": true
+              },
+              {
+                "name": "model available",
+                "passed": true
+              },
+              {
+                "name": "single model available",
+                "passed": true
+              },
+              {
+                "name": "final text available",
+                "passed": true
+              }
+            ]
           }
         }
       ],
@@ -153,6 +198,7 @@
         "error_event_count": 0
       },
       "passed_run_count": 1,
+      "claimable_run_count": 1,
       "correctness": [
         {
           "status": "passed",
@@ -191,6 +237,211 @@
       ],
       "raw_jsonl_paths": [
         "benchmarks/llm/samples/codex-turn-completed.jsonl"
+      ]
+    },
+    {
+      "scale": "small",
+      "condition": "without_project_librarian",
+      "task_family": "decision_lookup",
+      "prompt_id": "decision_lookup-small-without_project_librarian",
+      "cwd": "/tmp/project-librarian-codex-llm/sample-control",
+      "model": "gpt-5.5",
+      "models": [
+        "gpt-5.5"
+      ],
+      "runs": [
+        {
+          "run_index": 1,
+          "raw_jsonl_path": "benchmarks/llm/samples/codex-turn-completed-control.jsonl",
+          "metrics": {
+            "input_tokens": 24763,
+            "cached_input_tokens": 24448,
+            "output_tokens": 122,
+            "reasoning_output_tokens": 0,
+            "total_tokens": 24885,
+            "wall_ms": 2000,
+            "tokens_per_second": 61,
+            "codex_turn_count": 1,
+            "jsonl_event_count": 5,
+            "command_event_count": 2,
+            "command_invocation_count": 1,
+            "tool_event_count": 2,
+            "tool_invocation_count": 1,
+            "mcp_event_count": 0,
+            "mcp_invocation_count": 0,
+            "file_change_event_count": 0,
+            "error_event_count": 0,
+            "event_type_counts": {
+              "session.started": 1,
+              "tool.command.started": 1,
+              "tool.command.completed": 1,
+              "assistant.message": 1,
+              "turn.completed": 1
+            },
+            "unknown_event_types": [],
+            "model": "gpt-5.5",
+            "models": [
+              "gpt-5.5"
+            ],
+            "final_text": "2026-06-10 metrics decision in docs/decisions.md documents benchmark evidence from README.md control docs.",
+            "unavailable_event_fields": []
+          },
+          "correctness": {
+            "status": "passed",
+            "reason": "",
+            "checks": [
+              {
+                "name": "required term: 2026-06-10",
+                "passed": true
+              },
+              {
+                "name": "required term: benchmark",
+                "passed": true
+              },
+              {
+                "name": "any term: decision | metrics",
+                "passed": true
+              },
+              {
+                "name": "forbidden term absent: I cannot access",
+                "passed": true
+              },
+              {
+                "name": "condition evidence: README.md | docs/ | packages/",
+                "passed": true
+              },
+              {
+                "name": "expected evidence: docs/decisions.md | docs/benchmark-policy.md",
+                "passed": true
+              },
+              {
+                "name": "read-only zero file changes",
+                "passed": true
+              }
+            ]
+          },
+          "measurement": {
+            "status": "claimable",
+            "reason": "",
+            "checks": [
+              {
+                "name": "correctness passed",
+                "passed": true
+              },
+              {
+                "name": "usage available",
+                "passed": true
+              },
+              {
+                "name": "input tokens positive",
+                "passed": true
+              },
+              {
+                "name": "output tokens positive",
+                "passed": true
+              },
+              {
+                "name": "total tokens positive",
+                "passed": true
+              },
+              {
+                "name": "wall time positive",
+                "passed": true
+              },
+              {
+                "name": "model available",
+                "passed": true
+              },
+              {
+                "name": "single model available",
+                "passed": true
+              },
+              {
+                "name": "final text available",
+                "passed": true
+              }
+            ]
+          }
+        }
+      ],
+      "median": {
+        "input_tokens": 24763,
+        "cached_input_tokens": 24448,
+        "output_tokens": 122,
+        "reasoning_output_tokens": 0,
+        "total_tokens": 24885,
+        "wall_ms": 2000,
+        "tokens_per_second": 61,
+        "codex_turn_count": 1,
+        "jsonl_event_count": 5,
+        "command_event_count": 2,
+        "command_invocation_count": 1,
+        "tool_event_count": 2,
+        "tool_invocation_count": 1,
+        "mcp_event_count": 0,
+        "mcp_invocation_count": 0,
+        "file_change_event_count": 0,
+        "error_event_count": 0
+      },
+      "median_all_runs": {
+        "input_tokens": 24763,
+        "cached_input_tokens": 24448,
+        "output_tokens": 122,
+        "reasoning_output_tokens": 0,
+        "total_tokens": 24885,
+        "wall_ms": 2000,
+        "tokens_per_second": 61,
+        "codex_turn_count": 1,
+        "jsonl_event_count": 5,
+        "command_event_count": 2,
+        "command_invocation_count": 1,
+        "tool_event_count": 2,
+        "tool_invocation_count": 1,
+        "mcp_event_count": 0,
+        "mcp_invocation_count": 0,
+        "file_change_event_count": 0,
+        "error_event_count": 0
+      },
+      "passed_run_count": 1,
+      "claimable_run_count": 1,
+      "correctness": [
+        {
+          "status": "passed",
+          "reason": "",
+          "checks": [
+            {
+              "name": "required term: 2026-06-10",
+              "passed": true
+            },
+            {
+              "name": "required term: benchmark",
+              "passed": true
+            },
+            {
+              "name": "any term: decision | metrics",
+              "passed": true
+            },
+            {
+              "name": "forbidden term absent: I cannot access",
+              "passed": true
+            },
+            {
+              "name": "condition evidence: README.md | docs/ | packages/",
+              "passed": true
+            },
+            {
+              "name": "expected evidence: docs/decisions.md | docs/benchmark-policy.md",
+              "passed": true
+            },
+            {
+              "name": "read-only zero file changes",
+              "passed": true
+            }
+          ]
+        }
+      ],
+      "raw_jsonl_paths": [
+        "benchmarks/llm/samples/codex-turn-completed-control.jsonl"
       ]
     }
   ]

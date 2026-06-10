@@ -8,7 +8,7 @@ const childProcess = require("node:child_process");
 const { summarizeJsonl } = require("./lib/codex-jsonl");
 const { evaluateCorrectness } = require("./lib/llm-correctness");
 const { buildManifest, conditions, scales, taskFamilies } = require("./lib/llm-fixtures");
-const { medianMetrics, passedRuns, selectPairedScenarios } = require("./lib/llm-report");
+const { claimableRuns, completePairCount, measurementStatus, medianMetrics, passedRuns, selectPairedScenarios } = require("./lib/llm-report");
 
 const root = path.resolve(__dirname, "..");
 const cli = path.join(root, "dist", "init-project-wiki.js");
@@ -147,12 +147,14 @@ function runCodexScenario(scenario, { rawRoot, runIndex }) {
     readOnly: true,
   });
 
-  return {
+  const run = {
     run_index: runIndex,
     raw_jsonl_path: rawPath,
     metrics,
     correctness,
   };
+  run.measurement = measurementStatus(run);
+  return run;
 }
 
 function measuredReport({ manifest, authMode, runs, warmupRuns, maxScenarios }) {
@@ -174,6 +176,7 @@ function measuredReport({ manifest, authMode, runs, warmupRuns, maxScenarios }) 
       measuredRuns.push(runCodexScenario(scenario, { rawRoot, runIndex: index + 1 }));
     }
     const correctnessPassedRuns = passedRuns(measuredRuns);
+    const actualClaimableRuns = claimableRuns(measuredRuns);
     const scenarioModels = [...new Set(measuredRuns.flatMap((run) => run.metrics.models || []).filter(Boolean))];
     scenarios.push({
       scale: scenario.scale,
@@ -184,9 +187,10 @@ function measuredReport({ manifest, authMode, runs, warmupRuns, maxScenarios }) 
       model: scenarioModels.length === 1 ? scenarioModels[0] : null,
       models: scenarioModels,
       runs: measuredRuns,
-      median: correctnessPassedRuns.length > 0 ? medianMetrics(correctnessPassedRuns) : null,
+      median: actualClaimableRuns.length > 0 ? medianMetrics(actualClaimableRuns) : null,
       median_all_runs: medianMetrics(measuredRuns),
       passed_run_count: correctnessPassedRuns.length,
+      claimable_run_count: actualClaimableRuns.length,
       correctness: measuredRuns.map((run) => run.correctness),
       raw_jsonl_paths: measuredRuns.map((run) => run.raw_jsonl_path),
     });
@@ -211,9 +215,12 @@ function measuredReport({ manifest, authMode, runs, warmupRuns, maxScenarios }) 
     },
     summary: {
       scenario_count: scenarios.length,
+      comparison_pair_count: completePairCount(scenarios, conditions),
       passed_correctness_count: scenarios.filter((scenario) => scenario.correctness.every((item) => item.status === "passed")).length,
       needs_review_count: scenarios.filter((scenario) => scenario.correctness.some((item) => item.status === "needs_review")).length,
       failed_correctness_count: scenarios.filter((scenario) => scenario.correctness.some((item) => item.status === "failed")).length,
+      claimable_scenario_count: scenarios.filter((scenario) => scenario.claimable_run_count > 0).length,
+      unclaimable_scenario_count: scenarios.filter((scenario) => scenario.claimable_run_count === 0).length,
     },
     scenarios,
   };
