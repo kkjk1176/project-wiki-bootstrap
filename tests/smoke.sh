@@ -365,9 +365,15 @@ Decision: preserve a source path containing a pipe.
 EOF
 node "$CLI" --migrate
 grep -q 'spec\\|decision.md' wiki/migration/verification.md
+grep -q "Completion Scope" wiki/migration/verification.md
+grep -q "For a fresh rebuild request" wiki/migration/verification.md
+grep -q "future fresh rebuild request" wiki/startup.md
+grep -q "fresh rebuild procedure" wiki/index.md
 node -e 'const fs=require("fs"); const file="wiki/decisions/migration-inbox.md"; fs.writeFileSync(file, fs.readFileSync(file,"utf8").replace("| pending |", "| adopted |"));'
 node "$CLI" --review-migration > review-migration-pipe.log
-grep -q "semantic migration complete: yes" wiki/migration/verification.md
+grep -Eq "semantic migration complete: yes, for the .* migration batch.* only" wiki/migration/verification.md
+grep -Eq "semantic migration complete: yes, for the .* migration batch.* only" wiki/migration/review.md
+grep -q "For a fresh rebuild request" wiki/migration/review.md
 grep -q 'spec\\|decision.md' wiki/migration/review.md
 
 mkdir "$TMPDIR/migration-copy-risk"
