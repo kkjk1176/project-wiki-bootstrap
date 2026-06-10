@@ -8,7 +8,7 @@ const assert = require("node:assert/strict");
 const { summarizeJsonl } = require("../../benchmarks/lib/codex-jsonl");
 const { evaluateCorrectness } = require("../../benchmarks/lib/llm-correctness");
 const { conditions } = require("../../benchmarks/lib/llm-fixtures");
-const { claimableRuns, completePairCount, measurementStatus, medianMetrics, renderLlmMarkdownReport } = require("../../benchmarks/lib/llm-report");
+const { claimableRuns, completePairCount, evaluateClaimGate, measurementStatus, medianMetrics, metricStats, renderLlmMarkdownReport } = require("../../benchmarks/lib/llm-report");
 
 const root = path.resolve(__dirname, "..", "..");
 const sampleFinalText = "2026-06-10 metrics decision in wiki/decisions/log.md documents Project Librarian benchmark evidence.";
@@ -22,15 +22,18 @@ function validateSampleJsonl() {
   assert.equal(metrics.output_tokens, 122);
   assert.equal(metrics.reasoning_output_tokens, 0);
   assert.equal(metrics.total_tokens, 24885);
+  assert.equal(metrics.first_response_ms, 0);
   assert.equal(metrics.codex_turn_count, 1);
   assert.equal(metrics.command_event_count, 2);
   assert.equal(metrics.command_invocation_count, 1);
   assert.equal(metrics.tool_event_count, 2);
   assert.equal(metrics.tool_invocation_count, 1);
+  assert.equal(metrics.plan_event_count, 0);
   assert.equal(metrics.model, "gpt-5.5");
   assert.deepEqual(metrics.models, ["gpt-5.5"]);
   assert.equal(metrics.final_text, sampleFinalText);
   assert.equal(metrics.error_event_count, 0);
+  assert(metrics.unavailable_event_fields.includes("first_response_latency"));
 }
 
 function validateControlSampleJsonl() {
@@ -39,9 +42,11 @@ function validateControlSampleJsonl() {
   assert.equal(metrics.input_tokens, 24763);
   assert.equal(metrics.output_tokens, 122);
   assert.equal(metrics.total_tokens, 24885);
+  assert.equal(metrics.first_response_ms, 0);
   assert.equal(metrics.model, "gpt-5.5");
   assert.deepEqual(metrics.models, ["gpt-5.5"]);
   assert.equal(metrics.final_text, controlSampleFinalText);
+  assert(metrics.unavailable_event_fields.includes("first_response_latency"));
   const correctness = evaluateCorrectness({
     taskFamily: "decision_lookup",
     condition: "without_project_librarian",
@@ -95,7 +100,12 @@ function validateReport(reportPath) {
   }
   assert.equal(report.benchmark_kind, "codex-actual-llm");
   assert(report.auth && report.auth.auth_mode_source === "declared");
+  assert(report.source_control && typeof report.source_control.available === "boolean");
   assert(report.configuration && Number.isInteger(report.configuration.runs));
+  assert(typeof report.configuration.manifest_fingerprint === "string" && report.configuration.manifest_fingerprint.length === 64);
+  assert(typeof report.configuration.scenario_matrix_fingerprint === "string" && report.configuration.scenario_matrix_fingerprint.length === 64);
+  assert(Array.isArray(report.configuration.selected_scales));
+  assert(Array.isArray(report.configuration.selected_tasks));
   assert(Array.isArray(report.scenarios));
   assert(report.scenarios.length > 0);
   assert.equal(report.configuration.selected_scenarios, report.scenarios.length);
@@ -118,13 +128,16 @@ function validateReport(reportPath) {
     assert(Number.isInteger(scenario.passed_run_count));
     assert(Number.isInteger(scenario.claimable_run_count));
     assert(Array.isArray(scenario.models));
+    assert(scenario.fixture_fingerprint && scenario.fixture_fingerprint.algorithm === "sha256-relative-path-content" && scenario.fixture_fingerprint.value);
     assert(Object.hasOwn(scenario, "requested_model"));
     assert(Object.hasOwn(scenario, "model_source"));
+    assert(scenario.dispersion_all_runs);
 
     let passedRunCount = 0;
     const runModels = new Set();
     for (const [index, run] of scenario.runs.entries()) {
       assert(run.metrics);
+      assert(run.execution && ["completed", "failed"].includes(run.execution.status));
       assert.equal(run.requested_model, scenario.requested_model);
       const rawPath = path.resolve(root, run.raw_jsonl_path);
       assert(fs.existsSync(rawPath), `missing raw JSONL: ${run.raw_jsonl_path}`);
@@ -132,7 +145,10 @@ function validateReport(reportPath) {
       assert.deepEqual(run.metrics, rawMetrics);
       assert(Number.isInteger(run.metrics.command_invocation_count));
       assert(Number.isInteger(run.metrics.tool_invocation_count));
+      assert(Number.isInteger(run.metrics.plan_event_count));
+      assert(typeof run.metrics.first_response_ms === "number");
       assert(Array.isArray(run.metrics.models));
+      if (run.metrics.first_response_ms === 0) assert(run.metrics.unavailable_event_fields.includes("first_response_latency"));
       for (const model of run.metrics.models) runModels.add(model);
       if (run.metrics.models.length === 0) assert(run.metrics.unavailable_event_fields.includes("model"));
       if (run.metrics.models.length === 1) assert.equal(run.metrics.model, run.metrics.models[0]);
@@ -164,6 +180,8 @@ function validateReport(reportPath) {
     assert.equal(scenario.claimable_run_count, actualClaimableRuns.length);
     assert.deepEqual(scenario.median_all_runs, medianMetrics(scenario.runs));
     assert.deepEqual(scenario.median, actualClaimableRuns.length > 0 ? medianMetrics(actualClaimableRuns) : null);
+    assert.deepEqual(scenario.dispersion_all_runs, metricStats(scenario.runs));
+    assert.deepEqual(scenario.dispersion, actualClaimableRuns.length > 0 ? metricStats(actualClaimableRuns) : null);
     if (actualClaimableRuns.length === 0) assert.equal(scenario.median, null);
     if (scenario.correctness.every((item) => item.status === "passed")) passedCorrectnessCount += 1;
     if (scenario.correctness.some((item) => item.status === "needs_review")) needsReviewCount += 1;
@@ -180,9 +198,17 @@ function validateReport(reportPath) {
   assert.equal(report.summary.failed_correctness_count, failedCorrectnessCount);
   assert.equal(report.summary.claimable_scenario_count, claimableScenarioCount);
   assert.equal(report.summary.unclaimable_scenario_count, unclaimableScenarioCount);
+  assert.deepEqual(report.claim_gate, evaluateClaimGate(report, {
+    conditions,
+    expectedScales: report.configuration.selected_scales,
+    expectedTasks: report.configuration.selected_tasks,
+    fullMatrix: report.configuration.full_matrix,
+    minRunsForClaim: report.configuration.min_runs_for_claim,
+  }));
 
   const markdown = renderLlmMarkdownReport(report);
   assert(markdown.includes("# Codex Actual LLM Benchmark Report"));
+  assert(markdown.includes("Claim gate: passed"));
   assert(markdown.includes("## Scenario Metrics"));
   assert(markdown.includes("## With vs Without Delta"));
   assert(markdown.includes("| small | decision_lookup | with_project_librarian | claimable |"));
