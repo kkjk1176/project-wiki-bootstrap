@@ -74,6 +74,10 @@ function measurementChecks(run) {
   const hasRequestedModel = requestedModel.length > 0;
   return [
     {
+      name: "execution completed",
+      passed: !run.execution || run.execution.status === "completed",
+    },
+    {
       name: "correctness passed",
       passed: run.correctness?.status === "passed",
     },
@@ -168,11 +172,13 @@ function selectPairedScenarios(scenarios, maxScenarios, conditions) {
     groups.get(key).push(scenario);
   }
 
+  let pairIndex = 0;
   for (const group of groups.values()) {
     const pair = conditions.map((condition) => group.find((scenario) => scenario.condition === condition));
     if (pair.some((scenario) => !scenario)) continue;
     if (selected.length + pair.length > maxScenarios) break;
-    selected.push(...pair);
+    selected.push(...(pairIndex % 2 === 0 ? pair : [...pair].reverse()));
+    pairIndex += 1;
   }
   return selected;
 }
@@ -215,6 +221,9 @@ function evaluateClaimGate(report, { conditions = [], expectedScales = [], expec
 
   if (report.configuration?.runs < minRunsForClaim) {
     issues.push(`runs ${report.configuration.runs} below claim minimum ${minRunsForClaim}`);
+  }
+  if (report.configuration?.require_clean && (!report.source_control?.available || report.source_control?.dirty)) {
+    issues.push("require_clean report does not have clean source-control provenance");
   }
 
   for (const scenario of scenarios) {

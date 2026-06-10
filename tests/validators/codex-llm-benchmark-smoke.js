@@ -4,15 +4,42 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const childProcess = require("node:child_process");
+const crypto = require("node:crypto");
 const assert = require("node:assert/strict");
 const { summarizeJsonl } = require("../../benchmarks/lib/codex-jsonl");
 const { evaluateCorrectness } = require("../../benchmarks/lib/llm-correctness");
 const { conditions } = require("../../benchmarks/lib/llm-fixtures");
-const { claimableRuns, completePairCount, evaluateClaimGate, measurementStatus, medianMetrics, metricStats, renderLlmMarkdownReport } = require("../../benchmarks/lib/llm-report");
+const { claimableRuns, completePairCount, evaluateClaimGate, measurementStatus, medianMetrics, metricStats, renderLlmMarkdownReport, selectPairedScenarios } = require("../../benchmarks/lib/llm-report");
 
 const root = path.resolve(__dirname, "..", "..");
 const sampleFinalText = "2026-06-10 metrics decision in wiki/decisions/log.md documents Project Librarian benchmark evidence.";
 const controlSampleFinalText = "2026-06-10 metrics decision in docs/decisions.md documents benchmark evidence from README.md control docs.";
+
+function sha256(value) {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function fingerprintDirectory(directory) {
+  const entries = [];
+  function visit(current) {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const absolute = path.join(current, entry.name);
+      const relative = path.relative(directory, absolute).split(path.sep).join("/");
+      if (entry.isDirectory()) {
+        if ([".git", "node_modules"].includes(entry.name)) continue;
+        visit(absolute);
+      } else if (entry.isFile()) {
+        entries.push(`${relative}\0${sha256(fs.readFileSync(absolute))}`);
+      }
+    }
+  }
+  visit(directory);
+  return {
+    algorithm: "sha256-relative-path-content",
+    value: sha256(entries.join("\n")),
+    file_count: entries.length,
+  };
+}
 
 function validateSampleJsonl() {
   const samplePath = path.join(root, "benchmarks", "llm", "samples", "codex-turn-completed.jsonl");
@@ -89,6 +116,23 @@ function validateInvocationCounts() {
   assert.equal(completedOnlyMetrics.tool_invocation_count, 1);
 }
 
+function validatePairSelectionOrder() {
+  const scenarios = [];
+  for (const task of ["a", "b", "c"]) {
+    for (const condition of conditions) {
+      scenarios.push({ scale: "small", task_family: task, condition, prompt_id: `${task}-${condition}` });
+    }
+  }
+  assert.deepEqual(selectPairedScenarios(scenarios, 6, conditions).map((scenario) => scenario.prompt_id), [
+    "a-with_project_librarian",
+    "a-without_project_librarian",
+    "b-without_project_librarian",
+    "b-with_project_librarian",
+    "c-with_project_librarian",
+    "c-without_project_librarian",
+  ]);
+}
+
 function validateReport(reportPath) {
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
   assert.equal(report.schema_version, 1);
@@ -106,6 +150,7 @@ function validateReport(reportPath) {
   assert(typeof report.configuration.scenario_matrix_fingerprint === "string" && report.configuration.scenario_matrix_fingerprint.length === 64);
   assert(Array.isArray(report.configuration.selected_scales));
   assert(Array.isArray(report.configuration.selected_tasks));
+  assert.equal(report.configuration.scenario_order, "deterministic-alternating-pairs");
   assert(Array.isArray(report.scenarios));
   assert(report.scenarios.length > 0);
   assert.equal(report.configuration.selected_scenarios, report.scenarios.length);
@@ -120,6 +165,8 @@ function validateReport(reportPath) {
   for (const scenario of report.scenarios) {
     assert(Array.isArray(scenario.runs));
     assert(scenario.runs.length > 0);
+    assert(typeof scenario.prompt === "string" && scenario.prompt.length > 0);
+    assert(Array.isArray(scenario.command) && scenario.command.length > 0);
     assert(Object.hasOwn(scenario, "median"));
     assert(scenario.median_all_runs);
     assert(Array.isArray(scenario.correctness));
@@ -129,6 +176,9 @@ function validateReport(reportPath) {
     assert(Number.isInteger(scenario.claimable_run_count));
     assert(Array.isArray(scenario.models));
     assert(scenario.fixture_fingerprint && scenario.fixture_fingerprint.algorithm === "sha256-relative-path-content" && scenario.fixture_fingerprint.value);
+    if (scenario.cwd && fs.existsSync(scenario.cwd)) {
+      assert.deepEqual(scenario.fixture_fingerprint, fingerprintDirectory(scenario.cwd));
+    }
     assert(Object.hasOwn(scenario, "requested_model"));
     assert(Object.hasOwn(scenario, "model_source"));
     assert(scenario.dispersion_all_runs);
@@ -198,6 +248,21 @@ function validateReport(reportPath) {
   assert.equal(report.summary.failed_correctness_count, failedCorrectnessCount);
   assert.equal(report.summary.claimable_scenario_count, claimableScenarioCount);
   assert.equal(report.summary.unclaimable_scenario_count, unclaimableScenarioCount);
+  assert.equal(report.configuration.scenario_matrix_fingerprint, sha256(JSON.stringify(report.scenarios.map((scenario) => ({
+    scale: scenario.scale,
+    condition: scenario.condition,
+    task_family: scenario.task_family,
+    fixture_fingerprint: scenario.fixture_fingerprint,
+    requested_model: scenario.requested_model,
+  })))));
+  assert.equal(report.configuration.manifest_fingerprint, sha256(JSON.stringify(report.scenarios.map((scenario) => ({
+    scale: scenario.scale,
+    condition: scenario.condition,
+    task_family: scenario.task_family,
+    prompt: scenario.prompt,
+    fixture_fingerprint: scenario.fixture_fingerprint,
+    requested_model: scenario.requested_model,
+  })))));
   assert.deepEqual(report.claim_gate, evaluateClaimGate(report, {
     conditions,
     expectedScales: report.configuration.selected_scales,
@@ -302,6 +367,7 @@ validateSampleJsonl();
 validateControlSampleJsonl();
 validateReasoningTokenTotal();
 validateInvocationCounts();
+validatePairSelectionOrder();
 validateCorrectness();
 validateMeasurementClaimability();
 validateCliArgumentFailures();

@@ -33,9 +33,10 @@
     "selected_tasks": [
       "decision_lookup"
     ],
-    "manifest_fingerprint": "be54e66a5d2fc1f5d8232b87a44d35317a216566bb588771f81c843f6bceb56e",
+    "manifest_fingerprint": "82a86ab99b5a6dfacc6a0755848218eb81091b3a01fe833a8921786b40b3ed4d",
     "scenario_matrix_fingerprint": "2707b1ed612d5b7f544e4881c4f2850e0e465c42c81470e7002051ba89eabee6",
-    "require_clean": false
+    "require_clean": false,
+    "scenario_order": "deterministic-alternating-pairs"
   },
   "summary": {
     "scenario_count": 2,
@@ -139,6 +140,10 @@
             "status": "claimable",
             "reason": "",
             "checks": [
+              {
+                "name": "execution completed",
+                "passed": true
+              },
               {
                 "name": "correctness passed",
                 "passed": true
@@ -580,7 +585,18 @@
           "cv_percent": 0,
           "sample_count": 1
         }
-      }
+      },
+      "prompt": "Benchmark scenario: small / with_project_librarian / decision_lookup.\nWork as a coding agent in this repository.\nUse only local repository evidence.\nDo not modify files unless explicitly asked.\nFind the latest decision about benchmark evidence policy, including the decision date. Cite the source file.",
+      "command": [
+        "codex",
+        "exec",
+        "--json",
+        "--ephemeral",
+        "--sandbox",
+        "read-only",
+        "--skip-git-repo-check",
+        "Benchmark scenario: small / with_project_librarian / decision_lookup.\nWork as a coding agent in this repository.\nUse only local repository evidence.\nDo not modify files unless explicitly asked.\nFind the latest decision about benchmark evidence policy, including the decision date. Cite the source file."
+      ]
     },
     {
       "scale": "small",
@@ -674,6 +690,10 @@
             "status": "claimable",
             "reason": "",
             "checks": [
+              {
+                "name": "execution completed",
+                "passed": true
+              },
               {
                 "name": "correctness passed",
                 "passed": true
@@ -1115,7 +1135,18 @@
           "cv_percent": 0,
           "sample_count": 1
         }
-      }
+      },
+      "prompt": "Benchmark scenario: small / without_project_librarian / decision_lookup.\nWork as a coding agent in this repository.\nUse only local repository evidence.\nDo not modify files unless explicitly asked.\nFind the latest decision about benchmark evidence policy, including the decision date. Cite the source file.",
+      "command": [
+        "codex",
+        "exec",
+        "--json",
+        "--ephemeral",
+        "--sandbox",
+        "read-only",
+        "--skip-git-repo-check",
+        "Benchmark scenario: small / without_project_librarian / decision_lookup.\nWork as a coding agent in this repository.\nUse only local repository evidence.\nDo not modify files unless explicitly asked.\nFind the latest decision about benchmark evidence policy, including the decision date. Cite the source file."
+      ]
     }
   ],
   "source_control": {
