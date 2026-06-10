@@ -87,6 +87,22 @@ function buildInbox(title, description, items) {
 | --- | --- | --- | --- |
 ${markdownTableRows(items)}`;
 }
+function migrationBatchScope(legacyRoot) {
+    return `${workspace_1.today} migration batch${legacyRoot && legacyRoot !== "none" ? ` from ${legacyRoot}` : ""}`;
+}
+function semanticCompletionValue(complete, batchScope) {
+    if (complete)
+        return `yes, for the ${batchScope} only`;
+    return `no, the ${batchScope} still has unresolved rows`;
+}
+function completionScopeSection(batchScope) {
+    return `## Completion Scope
+
+- This page records the ${batchScope} only.
+- It does not mean future requests to build a new wiki from the existing wiki should reuse current \`wiki/\` in place.
+- For a fresh rebuild request, treat current \`wiki/\` as the legacy source unless the user says otherwise: preserve it as \`wiki_legacy*\`, create a fresh standard \`wiki/\`, migrate/adopt content from the preserved legacy source, then refresh routing and diagnostics.
+`;
+}
 function timestampSuffix() {
     return new Date().toISOString().replace(/[-:]/g, "").replace(/\..+$/, "").replace("T", "_");
 }
@@ -189,6 +205,8 @@ ${inventoryRows}`;
 - coverage: ${items.length === markdownFiles.length ? "pass" : "fail"}
 - This verifies file coverage only. Semantic completeness is confirmed after inbox statuses are resolved.
 
+${completionScopeSection(migrationBatchScope(legacyPath || "none"))}
+
 | Legacy Source | Classification | New Wiki Target | Coverage | Semantic Status |
 | --- | --- | --- | --- | --- |
 ${verificationRows}`;
@@ -198,12 +216,13 @@ ${verificationRows}`;
 - ${workspace_1.today}: preserved existing wiki at \`${legacyPath || "no wiki_legacy"}\` and regenerated the standard wiki structure.
 - Scanned ${items.length} legacy markdown files and created migration inventory, plan, verification, and inbox files.
 - Do not delete \`${legacyPath || "wiki_legacy"}\` until all migration inbox items are adopted/rejected/resolved and needs-human-review is 0.
+- Migration completion status is scoped to this batch only. For a future fresh rebuild request, treat current \`wiki/\` as the legacy source unless the user says otherwise.
 <!-- PROJECT-WIKI-MIGRATION:END -->`;
     const migrationIndexBlock = `<!-- PROJECT-WIKI-MIGRATION:START -->
 ## Migration
 
 - [[migration/plan]]
-  - Read when: migration procedure or status matters.
+  - Read when: migration procedure, fresh rebuild procedure, or status matters.
   - Update when: migration procedure or state changes.
   - Token budget: short.
 - [[migration/inventory]]
@@ -305,6 +324,9 @@ function runReviewMigrationMode() {
     const pending = counts.pending || 0;
     const needsHuman = counts["needs-human-review"] || 0;
     const complete = pending === 0 && needsHuman === 0;
+    const legacyRoot = (verificationText.match(/^- legacy root:\s*(.+)$/m) || [])[1] || "unknown";
+    const batchScope = migrationBatchScope(legacyRoot);
+    const completionValue = semanticCompletionValue(complete, batchScope);
     const reviewRows = reviewedRows.length === 0
         ? "| none | - | - | - | - |\n"
         : reviewedRows.map((row) => `| ${markdownTableCell(row.legacyPath)} | ${row.kind} | ${row.inboxStatus} | ${row.semanticStatus} | ${markdownTableCell(row.note)} |`).join("\n") + "\n";
@@ -320,7 +342,9 @@ function runReviewMigrationMode() {
 - resolved: ${counts.resolved || 0}
 - pending: ${pending}
 - needs-human-review: ${needsHuman}
-- semantic migration complete: ${complete ? "yes" : "no"}
+- semantic migration complete: ${completionValue}
+
+${completionScopeSection(batchScope)}
 
 | Legacy Source | Classification | Inbox Status | Semantic Status | Evidence |
 | --- | --- | --- | --- | --- |
@@ -328,7 +352,6 @@ ${reviewRows}`;
     const verificationRowsText = reviewedRows.length === 0
         ? "| none | - | - | pass | - |\n"
         : reviewedRows.map((row) => `| ${markdownTableCell(row.legacyPath)} | ${row.kind} | ${row.target} | ${row.coverage} | ${row.semanticStatus} |`).join("\n") + "\n";
-    const legacyRoot = (verificationText.match(/^- legacy root:\s*(.+)$/m) || [])[1] || "unknown";
     const verification = `${(0, templates_1.metadata)("migration-verification", "on-demand", "wiki/meta/wiki-ops-v1-decisions.md", "migration inbox items are adopted, rejected, resolved, or marked needs-human-review")}
 # Migration Verification
 
@@ -338,9 +361,11 @@ ${reviewRows}`;
 - legacy markdown files: ${reviewedRows.length}
 - mapped files: ${reviewedRows.filter((row) => row.coverage === "mapped").length}
 - coverage: ${reviewedRows.every((row) => row.coverage === "mapped") ? "pass" : "fail"}
-- semantic migration complete: ${complete ? "yes" : "no"}
+- semantic migration complete: ${completionValue}
 - pending: ${pending}
 - needs-human-review: ${needsHuman}
+
+${completionScopeSection(batchScope)}
 
 | Legacy Source | Classification | New Wiki Target | Coverage | Semantic Status |
 | --- | --- | --- | --- | --- |

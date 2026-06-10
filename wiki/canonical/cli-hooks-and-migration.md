@@ -33,6 +33,7 @@ Code-proven behavior:
 
 - `--migrate` / `--adopt-existing` moves an existing `wiki` to `wiki_legacy*`, recreates standard wiki structure, scans legacy markdown, and writes migration inboxes; evidence: `src/migration.ts`.
 - `--review-migration` / `--semantic-migrate` syncs migration inbox statuses into migration review and verification pages; evidence: `src/migration.ts`.
+- Migration completion output is scoped to the current migration batch and includes fresh rebuild guidance: future requests to build a new wiki from existing wiki should preserve current `wiki/` as `wiki_legacy*`, create a fresh standard `wiki/`, migrate/adopt preserved content, then refresh routing and diagnostics unless the user says otherwise; evidence: `migrationBatchScope`, `semanticCompletionValue`, and `completionScopeSection` in `src/migration.ts`.
 - Migration classifies markdown as `decision`, `source`, `canonical`, or `other` using path and text heuristics; evidence: `classifyMarkdown` in `src/migration.ts`.
 - Legacy files are not copied directly into new canonical pages. They are summarized into inbox tables for later human/agent rewrite; evidence: `buildInbox` and `runMigrationMode` in `src/migration.ts`.
 - Migration review must rewrite useful legacy meaning instead of file-copying old markdown into `wiki/canonical/`, `wiki/decisions/`, or `wiki/sources`; evidence: `SKILL.md` and `wiki/AGENTS.md`.
