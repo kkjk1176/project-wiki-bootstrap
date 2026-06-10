@@ -10,7 +10,10 @@ benchmarks/reports/*.md
 CLAUDE.local.md
 .claude/
 .codex/
+.cursor/
+.gemini/
 wiki/
 AGENTS.md
 CLAUDE.md
+GEMINI.md
 .githooks/
