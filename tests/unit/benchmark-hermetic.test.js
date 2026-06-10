@@ -19,9 +19,11 @@ const {
   RUNTIME_STATE_BASENAMES,
   buildIsolatedCodexHome,
   buildSpawnEnv,
+  checkPreRunFingerprint,
   findRuntimeStatePaths,
   resolveCodexAuthSource,
   resolveRealCodexHome,
+  snapshotFixturePaths,
   validateFixtureAfterRun,
 } = require("../../benchmarks/lib/hermetic");
 const { fingerprintDirectory } = require("../../benchmarks/lib/llm-fixtures");
@@ -224,10 +226,12 @@ test("validateFixtureAfterRun HARD-FAILS on a planted .omx/state/x runtime-state
   try {
     writeFile(path.join(fixture, "README.md"), "# Fixture\n");
     const expectedFingerprint = fingerprintDirectory(fixture);
+    // Snapshot BEFORE planting the runtime-state file (empty of denylist paths).
+    const preRunSnapshot = snapshotFixturePaths(fixture);
     // Plant the exact runtime-state file the 2026-06-10 run leaked into fixtures.
     writeFile(path.join(fixture, ".omx", "state", "x"), "session-state");
     assert.throws(
-      () => validateFixtureAfterRun({ cwd: fixture, expectedFingerprint }),
+      () => validateFixtureAfterRun({ cwd: fixture, expectedFingerprint, preRunSnapshot }),
       (error) => error.message.includes("runtime-state paths present") && error.message.includes(".omx"),
     );
   } finally {
@@ -245,6 +249,93 @@ test("findRuntimeStatePaths reports nested runtime-state dirs and is empty on a 
     const found = findRuntimeStatePaths(fixture);
     assert(found.includes(".omc"), `expected .omc, got ${JSON.stringify(found)}`);
     assert(found.includes("packages/a/.omx"), `expected nested .omx, got ${JSON.stringify(found)}`);
+  } finally {
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
+// --- snapshot-based denylist tests (pre-run snapshot distinguishes bootstrap from runtime state) ---
+
+test("validateFixtureAfterRun PASSES when bootstrap dot-dirs pre-exist and fixture is unchanged", () => {
+  // Simulates a realistic with_project_librarian fixture: .claude/, .codex/,
+  // .cursor/, .gemini/ are created by the Project Librarian bootstrap BEFORE the
+  // run. They must not trigger the denylist when a pre-run snapshot is provided.
+  const fixture = makeTmpDir("herm-bootstrap-pass-");
+  try {
+    writeFile(path.join(fixture, "README.md"), "# Fixture\n");
+    writeFile(path.join(fixture, ".claude", "settings.json"), "{}");
+    writeFile(path.join(fixture, ".codex", "hooks.json"), "{}");
+    writeFile(path.join(fixture, ".cursor", "rules", "main.md"), "rules");
+    writeFile(path.join(fixture, ".gemini", "settings.yaml"), "key: val");
+    // Fingerprint and snapshot with bootstrap dirs already in place.
+    const expectedFingerprint = fingerprintDirectory(fixture);
+    const preRunSnapshot = snapshotFixturePaths(fixture);
+    // No changes after snapshot — simulates a read-only codex run.
+    const result = validateFixtureAfterRun({ cwd: fixture, expectedFingerprint, preRunSnapshot });
+    assert.equal(result.status, "clean");
+    assert.deepEqual(result.runtime_state_paths, []);
+    assert.equal(result.fingerprint_matched, true);
+  } finally {
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
+test("validateFixtureAfterRun HARD-FAILS when .omx appears AFTER the snapshot (new runtime state)", () => {
+  // Pre-existing bootstrap dirs are in snapshot; .omx arrives during the run.
+  const fixture = makeTmpDir("herm-newomx-");
+  try {
+    writeFile(path.join(fixture, "README.md"), "# Fixture\n");
+    writeFile(path.join(fixture, ".claude", "settings.json"), "{}");
+    writeFile(path.join(fixture, ".codex", "hooks.json"), "{}");
+    const expectedFingerprint = fingerprintDirectory(fixture);
+    const preRunSnapshot = snapshotFixturePaths(fixture);
+    // Simulate codex writing .omx/state/x during the run.
+    writeFile(path.join(fixture, ".omx", "state", "x"), "session-state");
+    assert.throws(
+      () => validateFixtureAfterRun({ cwd: fixture, expectedFingerprint, preRunSnapshot }),
+      (error) => error.message.includes("runtime-state paths present") && error.message.includes(".omx"),
+    );
+  } finally {
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
+test("validateFixtureAfterRun HARD-FAILS when a new file appears under a pre-existing .codex/ (fingerprint drift)", () => {
+  // A new file under an already-snapshotted .codex/ is caught by the fingerprint
+  // check (content changes). The error must indicate fixture drift, not a false
+  // negative — the fingerprint check is the backstop even when the denylist path
+  // (.codex) was pre-existing.
+  const fixture = makeTmpDir("herm-codex-drift-");
+  try {
+    writeFile(path.join(fixture, "README.md"), "# Fixture\n");
+    writeFile(path.join(fixture, ".codex", "hooks.json"), "{}");
+    const expectedFingerprint = fingerprintDirectory(fixture);
+    const preRunSnapshot = snapshotFixturePaths(fixture);
+    // Codex writes a new state file under the pre-existing .codex/ dir.
+    writeFile(path.join(fixture, ".codex", "history.sqlite"), "binary-state");
+    assert.throws(
+      () => validateFixtureAfterRun({ cwd: fixture, expectedFingerprint, preRunSnapshot }),
+      (error) => error.message.includes("changed during the measured run"),
+    );
+  } finally {
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
+test("checkPreRunFingerprint passes on an unmodified fixture and fails on a stale one", () => {
+  const fixture = makeTmpDir("herm-prerun-");
+  try {
+    writeFile(path.join(fixture, "wiki", "startup.md"), "# Startup\n");
+    writeFile(path.join(fixture, "README.md"), "# Fixture\n");
+    const expectedFingerprint = fingerprintDirectory(fixture);
+    // Passes on an unmodified fixture.
+    checkPreRunFingerprint({ cwd: fixture, expectedFingerprint });
+    // Mutate the fixture (simulate stale state from a previous run).
+    writeFile(path.join(fixture, "README.md"), "# Fixture (stale)\n");
+    assert.throws(
+      () => checkPreRunFingerprint({ cwd: fixture, expectedFingerprint }),
+      (error) => error.message.includes("pre-run fixture check FAILED") && error.message.includes("stale or mutated"),
+    );
   } finally {
     fs.rmSync(fixture, { recursive: true, force: true });
   }
@@ -279,6 +370,9 @@ test("a stubbed codex child runs under the isolated env and leaves the fixture c
     const fixture = path.join(work, "fixture");
     writeFile(path.join(fixture, "README.md"), "# Fixture\n");
     const expectedFingerprint = fingerprintDirectory(fixture);
+    // Pre-run integrity check must pass on an unmodified fixture.
+    checkPreRunFingerprint({ cwd: fixture, expectedFingerprint });
+    const preRunSnapshot = snapshotFixturePaths(fixture);
 
     const result = childProcess.spawnSync(process.execPath, [fakeCodex, "exec"], {
       cwd: fixture,
@@ -292,7 +386,7 @@ test("a stubbed codex child runs under the isolated env and leaves the fixture c
     assert.equal(Object.keys(spawnEnv).some((key) => key.startsWith("npm_")), false);
     assert.equal(isolation.copied_files.length, 1);
 
-    const validation = validateFixtureAfterRun({ cwd: fixture, expectedFingerprint });
+    const validation = validateFixtureAfterRun({ cwd: fixture, expectedFingerprint, preRunSnapshot });
     assert.equal(validation.status, "clean");
 
     fs.rmSync(realHome, { recursive: true, force: true });

@@ -9,7 +9,7 @@ const crypto = require("node:crypto");
 const { summarizeJsonl } = require("./lib/codex-jsonl");
 const { evaluateCorrectness } = require("./lib/llm-correctness");
 const { buildManifest, conditions, controlProfiles, scales, taskFamilies, taskTracks } = require("./lib/llm-fixtures");
-const { buildIsolatedCodexHome, buildSpawnEnv, resolveRealCodexHome, validateFixtureAfterRun } = require("./lib/hermetic");
+const { buildIsolatedCodexHome, buildSpawnEnv, checkPreRunFingerprint, resolveRealCodexHome, snapshotFixturePaths, validateFixtureAfterRun } = require("./lib/hermetic");
 const { DEFAULT_CACHE_DISCOUNT, claimableRuns, completePairCount, evaluateTracksClaimGate, measurementStatus, medianMetrics, metricStats, passedRuns, renderLlmMarkdownReport, scenariosForTrack, selectPairedScenarios, tracksPresent } = require("./lib/llm-report");
 
 const root = path.resolve(__dirname, "..");
@@ -206,7 +206,6 @@ function runCodexScenario(scenario, { rawRoot, runIndex, spawnEnv }) {
 
   const command = scenario.command[0];
   const args = scenario.command.slice(1);
-  const started = process.hrtime.bigint();
   // Hermetic spawn (A5): the child env is the explicit allowlist built once for
   // the measured run (isolated CODEX_HOME, no inherited user plugins/config). The
   // env is always provided for measured runs; failing to pass it is a programming
@@ -214,6 +213,13 @@ function runCodexScenario(scenario, { rawRoot, runIndex, spawnEnv }) {
   if (!spawnEnv || typeof spawnEnv !== "object") {
     fail("internal error: measured Codex scenario invoked without a hermetic spawn env");
   }
+  // Pre-run fixture integrity check: verify fingerprint matches the manifest
+  // before consuming quota. Catches stale or previously-mutated fixtures early.
+  checkPreRunFingerprint({ cwd: scenario.cwd, expectedFingerprint: scenario.fixture_fingerprint });
+  // Snapshot paths present BEFORE the spawn so post-run denylist scanning can
+  // distinguish pre-existing bootstrap dot-dirs from paths written during the run.
+  const preRunSnapshot = snapshotFixturePaths(scenario.cwd);
+  const started = process.hrtime.bigint();
   const result = childProcess.spawnSync(command, args, {
     cwd: scenario.cwd,
     env: spawnEnv,
@@ -226,11 +232,13 @@ function runCodexScenario(scenario, { rawRoot, runIndex, spawnEnv }) {
   if (result.stderr) fs.writeFileSync(stderrPath, result.stderr);
 
   // Post-run fixture validation (A5): re-fingerprint the fixture and run the
-  // runtime-state denylist scan. Any drift or any runtime-state path inside the
-  // fixture is a hard failure (throws); isolation failures must fail the run.
+  // runtime-state denylist scan (only for NEW paths, not pre-existing bootstrap
+  // dot-dirs). Any drift or any newly-appeared runtime-state path is a hard
+  // failure (throws); isolation failures must fail the run.
   const fixtureValidation = validateFixtureAfterRun({
     cwd: scenario.cwd,
     expectedFingerprint: scenario.fixture_fingerprint,
+    preRunSnapshot,
   });
 
   const metrics = summarizeJsonlSafely(result.stdout || "", { wall_ms: Math.round(wallMs * 1000) / 1000 });
@@ -279,6 +287,14 @@ function runMultiSessionScenario(scenario, { rawRoot, runIndex, sessionSpawnEnvs
     fail(`internal error: multi_session scenario ${scenario.prompt_id} requires one isolated spawn env per session`);
   }
 
+  // Pre-run fixture integrity check before first session (fails before consuming
+  // any quota if the fixture is stale or mutated).
+  checkPreRunFingerprint({ cwd: scenario.cwd, expectedFingerprint: scenario.fixture_fingerprint });
+  // Snapshot paths present BEFORE session 1 so the post-run denylist scan can
+  // distinguish pre-existing bootstrap dot-dirs from paths written during either
+  // session (both sessions share the same fixture cwd).
+  const preRunSnapshot = snapshotFixturePaths(scenario.cwd);
+
   const sessionMetrics = [];
   let measuredSession = null;
   for (const [index, session] of scenario.sessions.entries()) {
@@ -324,9 +340,12 @@ function runMultiSessionScenario(scenario, { rawRoot, runIndex, sessionSpawnEnvs
   }
 
   // Post-run fixture validation (A5) runs ONCE after BOTH sessions complete.
+  // Pass the pre-run snapshot so only newly-appeared denylist paths (not
+  // pre-existing bootstrap dot-dirs) are treated as isolation failures.
   const fixtureValidation = validateFixtureAfterRun({
     cwd: scenario.cwd,
     expectedFingerprint: scenario.fixture_fingerprint,
+    preRunSnapshot,
   });
 
   // The run's primary metrics/correctness/final text come from the measured

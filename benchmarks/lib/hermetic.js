@@ -177,23 +177,81 @@ function findRuntimeStatePaths(root) {
   return found;
 }
 
+// Snapshot the full set of relative POSIX paths (both files and directories)
+// currently present inside a fixture directory. Used to build the pre-run
+// baseline so post-run denylist scanning can distinguish paths that already
+// existed (legitimate bootstrap output) from paths newly written during the run
+// (isolation failure). .git and node_modules are excluded — same as fingerprint.
+// Returns a plain Set<string> of relative POSIX paths.
+function snapshotFixturePaths(root) {
+  const found = new Set();
+  function visit(directory) {
+    let entries;
+    try {
+      entries = fs.readdirSync(directory, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if ([".git", "node_modules"].includes(entry.name)) continue;
+      const absolute = path.join(directory, entry.name);
+      const relative = path.relative(root, absolute).split(path.sep).join("/");
+      found.add(relative);
+      if (entry.isDirectory()) visit(absolute);
+    }
+  }
+  visit(root);
+  return found;
+}
+
+// Pre-run fixture integrity check. Verifies that the fixture fingerprint matches
+// the manifest before spawning codex so a stale or mutated fixture fails BEFORE
+// consuming quota. The error message is distinct from the post-run one so the
+// two failure modes are unambiguous in logs.
+function checkPreRunFingerprint({ cwd, expectedFingerprint }) {
+  if (!cwd || !fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) {
+    throw new Error(`pre-run fixture check: fixture directory missing: ${cwd}`);
+  }
+  if (!expectedFingerprint || typeof expectedFingerprint.value !== "string") {
+    throw new Error(`pre-run fixture check: missing expected fingerprint for ${cwd}`);
+  }
+  const actualFingerprint = fingerprintDirectory(cwd);
+  if (actualFingerprint.value !== expectedFingerprint.value || actualFingerprint.file_count !== expectedFingerprint.file_count) {
+    throw new Error(
+      `pre-run fixture check FAILED: fixture ${cwd} does not match the manifest fingerprint before the run ` +
+      `(expected ${expectedFingerprint.file_count} files / ${expectedFingerprint.value.slice(0, 12)}…, ` +
+      `got ${actualFingerprint.file_count} files / ${actualFingerprint.value.slice(0, 12)}…). ` +
+      "The fixture may be stale or mutated from a previous run. Regenerate the manifest before measuring.",
+    );
+  }
+}
+
 // Post-run fixture validation (A5, throws on violation, no fallback). After a
 // measured codex run against a fixture:
-//   1. Runtime-state denylist: any RUNTIME_STATE_BASENAMES path inside the
-//      fixture is a HARD FAILURE naming the offending paths. This is checked
-//      first and independently of the fingerprint so isolation failures fail the
-//      run even if (somehow) the fingerprint matched.
+//   1. Runtime-state denylist: any RUNTIME_STATE_BASENAMES path that is present
+//      AFTER the run but was NOT in the pre-run snapshot is a HARD FAILURE naming
+//      the offending new paths. Pre-existing denylist-named paths (e.g. .claude/,
+//      .codex/ installed by the Project Librarian bootstrap) are NOT flagged —
+//      only paths that appeared during the run are isolation failures. When no
+//      preRunSnapshot is provided (legacy/test usage), all denylist paths are
+//      flagged unconditionally (old behaviour).
 //   2. Fingerprint: re-fingerprint the fixture and compare to the manifest
 //      fingerprint. Any difference (count or content hash) fails the run.
 // Returns a provenance record describing the clean post-run state on success.
-function validateFixtureAfterRun({ cwd, expectedFingerprint }) {
+function validateFixtureAfterRun({ cwd, expectedFingerprint, preRunSnapshot }) {
   if (!cwd || !fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) {
     throw new Error(`post-run fixture validation: fixture directory missing: ${cwd}`);
   }
-  const runtimeStatePaths = findRuntimeStatePaths(cwd);
-  if (runtimeStatePaths.length > 0) {
+  const allRuntimeStatePaths = findRuntimeStatePaths(cwd);
+  // When a pre-run snapshot is available, only flag denylist paths that are NEW
+  // (not present before the spawn). Pre-existing bootstrap dirs (.claude, .codex,
+  // .cursor, .gemini) are not violations — only paths written during the run are.
+  const newRuntimeStatePaths = preRunSnapshot instanceof Set
+    ? allRuntimeStatePaths.filter((p) => !preRunSnapshot.has(p))
+    : allRuntimeStatePaths;
+  if (newRuntimeStatePaths.length > 0) {
     throw new Error(
-      `post-run fixture validation failed: runtime-state paths present inside fixture ${cwd}: ${runtimeStatePaths.join(", ")}. ` +
+      `post-run fixture validation failed: runtime-state paths present inside fixture ${cwd}: ${newRuntimeStatePaths.join(", ")}. ` +
       "Isolation failed (codex/plugins wrote runtime state into the fixture); this is a hard failure, not excluded from the fingerprint.",
     );
   }
@@ -221,8 +279,10 @@ module.exports = {
   RUNTIME_STATE_BASENAMES,
   buildIsolatedCodexHome,
   buildSpawnEnv,
+  checkPreRunFingerprint,
   findRuntimeStatePaths,
   resolveCodexAuthSource,
   resolveRealCodexHome,
+  snapshotFixturePaths,
   validateFixtureAfterRun,
 };
