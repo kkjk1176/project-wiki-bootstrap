@@ -54,6 +54,31 @@ npm run benchmark:trend -- --trend benchmarks/baselines/0.1.2-large.json --trend
 
 Trend status uses a 5% threshold and direction-aware labels (`improved`, `flat`, `degraded`) for the tracked summary metrics. The first `--trend` input is the compatibility and delta baseline. Trend input order is preserved. Trend compatibility is intentionally relaxed to Node major version plus platform/architecture so historical series can survive patch-level runtime drift; release-gate comparisons remain strict. Incompatible reports remain listed but are excluded from metric deltas. A metric needs at least two compatible numeric points before the trend status is claimable; otherwise it is reported as `n/a`.
 
+## Codex Actual LLM Benchmark
+
+The Codex actual LLM benchmark is a separate opt-in surface. It is not part of `benchmark:release` yet, and measured runs must be explicitly allowed because they can consume ChatGPT/Codex subscription quota.
+
+Create the small/medium/large with-vs-without fixture manifest without launching Codex:
+
+```sh
+npm run benchmark:llm:dry-run
+```
+
+Validate the JSONL parser and report-shape checks against checked-in sample artifacts:
+
+```sh
+npm run benchmark:llm:parse-smoke
+node tests/validators/codex-llm-benchmark-smoke.js benchmarks/llm/samples/codex-measured-report.json
+```
+
+Measured Codex execution is intentionally gated behind `--allow-codex-run` and uses `codex exec --json --ephemeral --sandbox read-only --skip-git-repo-check` because scenarios run from generated fixture directories. By default it runs one with/without pair to preserve comparison validity while limiting subscription quota use; pass `--max-scenarios`, `--runs`, and `--warmup-runs` deliberately when expanding coverage. Pass `--model <model>` when Codex JSONL does not expose a model field; the report records `model_source` as `jsonl` or `requested` rather than guessing. Report `median` values are computed only from claimable runs: correctness must pass, usage/model/final-text fields must be present, token counts and wall time must be positive, and the run must resolve to exactly one model. `median_all_runs` is retained for audit when a run fails, needs review, or lacks claimable measurement fields. Raw event counts and normalized invocation counts are reported separately so start/completed JSONL pairs do not inflate tool-call claims.
+
+```sh
+npm run benchmark:llm -- --allow-codex-run --scales small --tasks decision_lookup --max-scenarios 2 --runs 1 --warmup-runs 0 --model gpt-5.5
+```
+
+Subscription-authenticated runs fail if `CODEX_API_KEY` or `OPENAI_API_KEY` is present. Pass `--auth-mode api-key` only when intentionally running an API-key-priced benchmark. The report records declared auth mode plus non-secret auth-environment audit flags, but public claims still need human review when local Codex config could route through a profile not visible in environment variables. Reports under `benchmarks/reports/llm/` are ignored by default; commit only deliberate release evidence.
+
 Commit policy:
 
 - Commit release baselines that public release claims compare against.
