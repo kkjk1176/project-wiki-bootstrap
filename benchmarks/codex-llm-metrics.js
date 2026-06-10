@@ -301,7 +301,15 @@ function measuredReport({ manifest, authMode, runs, warmupRuns, maxScenarios, fu
       selected_tasks: selectedTasks,
       selected_scenarios: selectedScenarios.length,
       total_manifest_scenarios: manifest.scenarios.length,
-      manifest_fingerprint: manifest.manifest_fingerprint,
+      full_manifest_fingerprint: manifest.manifest_fingerprint,
+      manifest_fingerprint: sha256(JSON.stringify(selectedScenarios.map((scenario) => ({
+        scale: scenario.scale,
+        condition: scenario.condition,
+        task_family: scenario.task_family,
+        prompt: scenario.prompt,
+        fixture_fingerprint: scenario.fixture_fingerprint,
+        requested_model: scenario.requested_model,
+      })))),
       scenario_matrix_fingerprint: sha256(JSON.stringify(selectedScenarios.map((scenario) => ({
         scale: scenario.scale,
         condition: scenario.condition,

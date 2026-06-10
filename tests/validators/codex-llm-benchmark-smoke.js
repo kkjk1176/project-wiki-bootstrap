@@ -147,6 +147,9 @@ function validateReport(reportPath) {
   assert(report.source_control && typeof report.source_control.available === "boolean");
   assert(report.configuration && Number.isInteger(report.configuration.runs));
   assert(typeof report.configuration.manifest_fingerprint === "string" && report.configuration.manifest_fingerprint.length === 64);
+  if (Object.hasOwn(report.configuration, "full_manifest_fingerprint")) {
+    assert(typeof report.configuration.full_manifest_fingerprint === "string" && report.configuration.full_manifest_fingerprint.length === 64);
+  }
   assert(typeof report.configuration.scenario_matrix_fingerprint === "string" && report.configuration.scenario_matrix_fingerprint.length === 64);
   assert(Array.isArray(report.configuration.selected_scales));
   assert(Array.isArray(report.configuration.selected_tasks));
@@ -154,6 +157,7 @@ function validateReport(reportPath) {
   assert(Array.isArray(report.scenarios));
   assert(report.scenarios.length > 0);
   assert.equal(report.configuration.selected_scenarios, report.scenarios.length);
+  assert(report.configuration.total_manifest_scenarios >= report.configuration.selected_scenarios);
   assert(report.configuration.max_scenarios >= conditions.length);
 
   let passedCorrectnessCount = 0;
