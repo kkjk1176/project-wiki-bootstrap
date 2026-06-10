@@ -1,0 +1,199 @@
+"use strict";
+
+const fs = require("node:fs");
+const path = require("node:path");
+
+const scales = {
+  small: {
+    wikiPages: 8,
+    codeFiles: 50,
+    workspaces: 1,
+  },
+  medium: {
+    wikiPages: 80,
+    codeFiles: 500,
+    workspaces: 5,
+  },
+  large: {
+    wikiPages: 500,
+    codeFiles: 1500,
+    workspaces: 12,
+  },
+};
+
+const conditions = ["with_project_librarian", "without_project_librarian"];
+
+const taskFamilies = {
+  onboarding: "Summarize what this project is, current risks, and where to read next. Cite the files you used.",
+  decision_lookup: "Find the latest decision about benchmark evidence policy. Cite the source file.",
+  code_impact: "If benchmark report schema changes, what files or areas are likely impacted? Cite evidence.",
+  release_policy: "What checks are required before publishing or making benchmark claims? Cite the policy.",
+  change_location: "Where should an agent edit to implement a Codex LLM benchmark runner? Do not modify files.",
+};
+
+function writeFile(filePath, content) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, content);
+}
+
+function planningPage(index, scale) {
+  return `---
+status: active
+updated: 2026-06-10
+scope: benchmark-fixture
+read_budget: short
+decision_ref: none
+review_trigger: benchmark fixture regeneration
+---
+
+# Fixture Planning Page ${index}
+
+Project Librarian benchmark fact ${index} for ${scale}.
+
+- Owner: benchmark-team-${index % 5}
+- Risk: route drift ${index}
+- Verification: npm run benchmark:llm:dry-run
+`;
+}
+
+function sourceFile(index, workspace) {
+  return `export function route${index}() {
+  return {
+    workspace: "${workspace}",
+    route: "/benchmark/${index}",
+    owner: "benchmark-team-${index % 5}",
+  };
+}
+`;
+}
+
+function materializeBaseRepo(root, scaleName, condition) {
+  const scale = scales[scaleName];
+  if (!scale) throw new Error(`unknown scale: ${scaleName}`);
+
+  fs.mkdirSync(root, { recursive: true });
+  writeFile(path.join(root, "README.md"), `# ${scaleName} benchmark fixture
+
+This fixture models a ${scaleName} repository for actual Codex LLM benchmark experiments.
+
+Current benchmark evidence policy requires with-vs-without Project Librarian comparisons, measured token usage, tool-call counts, and correctness checks.
+`);
+
+  writeFile(path.join(root, "package.json"), `${JSON.stringify({
+    name: `llm-benchmark-${scaleName}-${condition}`,
+    private: true,
+    type: "module",
+  }, null, 2)}\n`);
+
+  for (let index = 0; index < scale.codeFiles; index += 1) {
+    const workspace = `workspace-${index % scale.workspaces}`;
+    writeFile(path.join(root, "packages", workspace, "src", `route-${index}.ts`), sourceFile(index, workspace));
+  }
+}
+
+function materializeWithProjectLibrarian(root, scaleName) {
+  const scale = scales[scaleName];
+  materializeBaseRepo(root, scaleName, "with_project_librarian");
+  writeFile(path.join(root, "AGENTS.md"), "# Agent Instructions\n\nStart with wiki/startup.md and wiki/index.md.\n");
+  writeFile(path.join(root, ".codex", "hooks.json"), `${JSON.stringify({
+    hooks: {
+      SessionStart: [
+        {
+          matcher: "startup|resume|clear",
+          hooks: [{ type: "command", command: "node .codex/hooks/wiki-session-start.js" }],
+        },
+      ],
+    },
+  }, null, 2)}\n`);
+  writeFile(path.join(root, ".codex", "hooks", "wiki-session-start.js"), "console.log('wiki/startup.md\\nwiki/index.md');\n");
+  writeFile(path.join(root, "wiki", "startup.md"), "# Startup Context\n\nUse wiki/index.md to route to project truth.\n");
+  writeFile(path.join(root, "wiki", "index.md"), "# Wiki Index\n\n- [[canonical/benchmark-and-release-evidence]]\n");
+  writeFile(path.join(root, "wiki", "canonical", "benchmark-and-release-evidence.md"), "# Benchmark And Release Evidence\n\nActual LLM evidence compares with and without Project Librarian across small, medium, and large fixtures.\n");
+  writeFile(path.join(root, "wiki", "decisions", "log.md"), "# Decision Log\n\n- 2026-06-10 | metrics | actual LLM benchmark comparison adopted.\n");
+  writeFile(path.join(root, ".project-wiki", "code-evidence.sqlite"), "fixture placeholder\n");
+
+  if (scale.wikiPages > 100) {
+    writeFile(path.join(root, "wiki", "indexes", "auto-packages.md"), "# Package Routes\n\nGenerated scoped router fixture.\n");
+  }
+  for (let index = 0; index < scale.wikiPages; index += 1) {
+    writeFile(path.join(root, "wiki", "canonical", `fixture-page-${index}.md`), planningPage(index, scaleName));
+  }
+}
+
+function materializeWithoutProjectLibrarian(root, scaleName) {
+  const scale = scales[scaleName];
+  materializeBaseRepo(root, scaleName, "without_project_librarian");
+  writeFile(path.join(root, "docs", "benchmark-policy.md"), "# Benchmark Policy\n\nActual LLM evidence compares tools by measured token usage, tool-call counts, and correctness checks.\n");
+  writeFile(path.join(root, "docs", "decisions.md"), "# Decisions\n\n- 2026-06-10: actual LLM benchmark comparison adopted.\n");
+  for (let index = 0; index < scale.wikiPages; index += 1) {
+    writeFile(path.join(root, "docs", "planning", `fixture-page-${index}.md`), planningPage(index, scaleName));
+  }
+}
+
+function promptFor(taskFamily, scale, condition) {
+  const prompt = taskFamilies[taskFamily];
+  if (!prompt) throw new Error(`unknown task family: ${taskFamily}`);
+  return [
+    `Benchmark scenario: ${scale} / ${condition} / ${taskFamily}.`,
+    "Work as a coding agent in this repository.",
+    "Use only local repository evidence.",
+    "Do not modify files unless explicitly asked.",
+    prompt,
+  ].join("\n");
+}
+
+function codexCommand(prompt) {
+  return ["codex", "exec", "--json", "--ephemeral", "--sandbox", "read-only", prompt];
+}
+
+function buildScenarioManifest({ fixtureRoot, scale, condition, taskFamily }) {
+  const cwd = path.join(fixtureRoot, scale, condition);
+  const prompt = promptFor(taskFamily, scale, condition);
+  return {
+    scale,
+    condition,
+    task_family: taskFamily,
+    prompt_id: `${taskFamily}-${scale}-${condition}`,
+    cwd,
+    prompt,
+    command: codexCommand(prompt),
+  };
+}
+
+function materializeFixturePair(fixtureRoot, scale) {
+  const withRoot = path.join(fixtureRoot, scale, "with_project_librarian");
+  const withoutRoot = path.join(fixtureRoot, scale, "without_project_librarian");
+  materializeWithProjectLibrarian(withRoot, scale);
+  materializeWithoutProjectLibrarian(withoutRoot, scale);
+}
+
+function buildManifest({ fixtureRoot, selectedScales = Object.keys(scales), selectedTasks = Object.keys(taskFamilies) }) {
+  const scenarios = [];
+  for (const scale of selectedScales) {
+    materializeFixturePair(fixtureRoot, scale);
+    for (const condition of conditions) {
+      for (const taskFamily of selectedTasks) {
+        scenarios.push(buildScenarioManifest({ fixtureRoot, scale, condition, taskFamily }));
+      }
+    }
+  }
+
+  return {
+    schema_version: 1,
+    benchmark_kind: "codex-actual-llm-manifest",
+    generated_at: new Date().toISOString(),
+    fixture_root: fixtureRoot,
+    scales: selectedScales,
+    conditions,
+    task_families: selectedTasks,
+    scenarios,
+  };
+}
+
+module.exports = {
+  buildManifest,
+  conditions,
+  materializeFixturePair,
+  scales,
+  taskFamilies,
+};

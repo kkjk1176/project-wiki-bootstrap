@@ -6,6 +6,7 @@ tmp/
 *.log
 benchmarks/reports/*.json
 benchmarks/reports/*.md
+benchmarks/reports/llm/
 !benchmarks/reports/.gitkeep
 CLAUDE.local.md
 .claude/

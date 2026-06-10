@@ -54,6 +54,24 @@ npm run benchmark:trend -- --trend benchmarks/baselines/0.1.2-large.json --trend
 
 Trend status uses a 5% threshold and direction-aware labels (`improved`, `flat`, `degraded`) for the tracked summary metrics. The first `--trend` input is the compatibility and delta baseline. Trend input order is preserved. Trend compatibility is intentionally relaxed to Node major version plus platform/architecture so historical series can survive patch-level runtime drift; release-gate comparisons remain strict. Incompatible reports remain listed but are excluded from metric deltas. A metric needs at least two compatible numeric points before the trend status is claimable; otherwise it is reported as `n/a`.
 
+## Codex Actual LLM Benchmark
+
+The Codex actual LLM benchmark is a separate opt-in surface. It is not part of `benchmark:release` yet, and measured runs must be explicitly allowed because they can consume ChatGPT/Codex subscription quota.
+
+Create the small/medium/large with-vs-without fixture manifest without launching Codex:
+
+```sh
+npm run benchmark:llm:dry-run
+```
+
+Validate the JSONL parser against the checked-in sample event stream:
+
+```sh
+npm run benchmark:llm:parse-smoke
+```
+
+Measured Codex execution is intentionally gated behind `--allow-codex-run` and will use `codex exec --json --ephemeral --sandbox read-only` when the execution phase is implemented. Reports under `benchmarks/reports/llm/` are ignored by default; commit only deliberate release evidence.
+
 Commit policy:
 
 - Commit release baselines that public release claims compare against.
