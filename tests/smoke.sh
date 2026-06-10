@@ -1188,46 +1188,12 @@ grep -q "agents: codex, claude" legacy-both-skill-install.log
 
 mkdir "$TMPDIR/benchmark"
 cd "$TMPDIR/benchmark"
-node "$ROOT/benchmarks/project-metrics.js" --quick --sample-repo "$ROOT/benchmarks/samples/web-service" --sample-repo "$ROOT/benchmarks/samples/python-cli" --sample-repo "$ROOT/benchmarks/samples/mixed-monorepo" --out benchmark.json > benchmark.stdout.json
-test -f benchmark.json
-node "$ROOT/tests/validators/benchmark-smoke.js" full benchmark.json
-node "$ROOT/benchmarks/project-metrics.js" --quick --sample-repo "$ROOT/benchmarks/samples/web-service" --sample-repo "$ROOT/benchmarks/samples/python-cli" --sample-repo "$ROOT/benchmarks/samples/mixed-monorepo" --baseline benchmark.json --out benchmark-comparison.json > benchmark-comparison.stdout.json
-node "$ROOT/tests/validators/benchmark-smoke.js" comparison benchmark-comparison.json
-if node "$ROOT/benchmarks/project-metrics.js" --quick --fail-on-regression --out missing-baseline-gate.json > missing-baseline-gate.log 2>&1; then
-  echo "benchmark release gate should require --baseline" >&2
+node "$ROOT/benchmarks/codex-llm-metrics.js" --dry-run --out "$PWD/llm-manifest.json" > llm-manifest.stdout.json
+test -f llm-manifest.json
+node "$ROOT/tests/validators/codex-llm-benchmark-smoke.js" llm-manifest.json
+node "$ROOT/tests/validators/codex-llm-benchmark-smoke.js" "$ROOT/benchmarks/llm/samples/codex-measured-report.json"
+if node "$ROOT/benchmarks/codex-llm-metrics.js" --scales small --tasks decision_lookup --max-scenarios 2 --runs 1 --warmup-runs 0 > missing-allow-codex-run.log 2>&1; then
+  echo "measured Codex benchmark should require --allow-codex-run" >&2
   exit 1
 fi
-grep -q "requires --baseline" missing-baseline-gate.log
-node -e 'const fs=require("fs"); const m=require("./benchmark.json"); m.measurement.runs=2; fs.writeFileSync("not-comparable-baseline.json", `${JSON.stringify(m,null,2)}\n`);'
-node "$ROOT/benchmarks/project-metrics.js" --quick --sample-repo "$ROOT/benchmarks/samples/web-service" --sample-repo "$ROOT/benchmarks/samples/python-cli" --sample-repo "$ROOT/benchmarks/samples/mixed-monorepo" --baseline not-comparable-baseline.json --out not-comparable-comparison.json > not-comparable-comparison.stdout.json
-node "$ROOT/tests/validators/benchmark-smoke.js" status not-comparable-comparison.json not_comparable benchmark.runs
-node -e 'const fs=require("fs"); const m=require("./benchmark.json"); const sample=m.scenarios.find((s)=>s.fixture_kind==="sample-repo-validation-01"); sample.sample_repo_fingerprint="changed"; fs.writeFileSync("sample-mismatch-baseline.json", `${JSON.stringify(m,null,2)}\n`);'
-node "$ROOT/benchmarks/project-metrics.js" --quick --sample-repo "$ROOT/benchmarks/samples/web-service" --sample-repo "$ROOT/benchmarks/samples/python-cli" --sample-repo "$ROOT/benchmarks/samples/mixed-monorepo" --baseline sample-mismatch-baseline.json --out sample-mismatch-comparison.json > sample-mismatch-comparison.stdout.json
-node "$ROOT/tests/validators/benchmark-smoke.js" status sample-mismatch-comparison.json not_comparable benchmark.scenarios
-node -e 'const fs=require("fs"); const m=require("./benchmark.json"); const sample=m.scenarios.find((s)=>s.fixture_kind==="sample-repo-validation-01"); sample.sample_repo_code_index_ms=sample.sample_repo_code_index_ms / 10; sample.sample_repo_architecture_report_ms=sample.sample_repo_architecture_report_ms / 10; fs.writeFileSync("sample-masked-regression-baseline.json", `${JSON.stringify(m,null,2)}\n`);'
-node "$ROOT/benchmarks/project-metrics.js" --quick --sample-repo "$ROOT/benchmarks/samples/web-service" --sample-repo "$ROOT/benchmarks/samples/python-cli" --sample-repo "$ROOT/benchmarks/samples/mixed-monorepo" --baseline sample-masked-regression-baseline.json --out sample-masked-regression-comparison.json > sample-masked-regression-comparison.stdout.json
-node "$ROOT/tests/validators/benchmark-smoke.js" masked-regression sample-masked-regression-comparison.json
-node -e 'const fs=require("fs"); const m=require("./benchmark.json"); const docs=m.scenarios.find((s)=>s.fixture_kind==="docs-heavy-large-project"); const monorepo=m.scenarios.find((s)=>s.fixture_kind==="monorepo-large-project"); const scoped=m.scenarios.find((s)=>s.fixture_kind==="scoped-routing-large-project"); if (!scoped || scoped.scoped_router_count < 1 || scoped.main_index_chars > 4500 || scoped.refresh_index_ms <= 0 || scoped.link_check_ms <= 0 || scoped.targeted_context.file_count !== 4 || scoped.retrieval_correctness.correctness_status !== "passed" || !scoped.scoped_router_files.some((file)=>file==="wiki/indexes/auto-apps-app-0.md")) process.exit(1); const code=m.scenarios.find((s)=>s.fixture_kind==="code-heavy-large-project"); docs.query_ms=100000; monorepo.doctor_ms=100000; code.code_index_ms=100000; code.incremental_index_ms=100000; code.architecture_report_ms=100000; code.code_index_files_per_second=1; for (const sample of m.scenarios.filter((s)=>s.fixture_kind.startsWith("sample-repo-validation-"))) { sample.sample_repo_code_index_ms=100000; sample.sample_repo_architecture_report_ms=100000; } m.summary.sample_repo_code_index_ms=100000; m.summary.sample_repo_architecture_report_ms=100000; m.summary.min_estimated_token_avoidance_percent=0; fs.writeFileSync("unstable-gate-baseline.json", `${JSON.stringify(m,null,2)}\n`);'
-if node "$ROOT/benchmarks/project-metrics.js" --quick --sample-repo "$ROOT/benchmarks/samples/web-service" --sample-repo "$ROOT/benchmarks/samples/python-cli" --sample-repo "$ROOT/benchmarks/samples/mixed-monorepo" --baseline unstable-gate-baseline.json --fail-on-regression --out unstable-gate-comparison.json > unstable-gate-comparison.log 2>&1; then
-  echo "benchmark release gate should reject single-run unstable timing" >&2
-  exit 1
-fi
-grep -q "benchmark release gate failed: unstable" unstable-gate-comparison.log
-printf "dirty baseline smoke\n" > "$ROOT_DIRTY_PROBE"
-if node "$ROOT/benchmarks/project-metrics.js" --quick --save-baseline dirty-baseline.json > dirty-baseline.log 2>&1; then
-  echo "benchmark baseline save should reject dirty worktrees by default" >&2
-  exit 1
-fi
-grep -q "allow-dirty-baseline" dirty-baseline.log
-node "$ROOT/benchmarks/project-metrics.js" --quick --save-baseline saved-baseline.json --allow-dirty-baseline --markdown release-summary.md > benchmark-release.stdout.json
-test -f saved-baseline.json
-test -f release-summary.md
-grep -q "Project Librarian Benchmark" release-summary.md
-grep -q "Claim Boundaries" release-summary.md
-node "$ROOT/benchmarks/project-metrics.js" --trend benchmark.json --trend benchmark-comparison.json --trend-out trend.json --trend-markdown trend.md > trend.stdout.json
-test -f trend.json
-test -f trend.md
-grep -q "Benchmark Trend" trend.md
-node "$ROOT/tests/validators/benchmark-smoke.js" trend trend.json
-node "$ROOT/benchmarks/project-metrics.js" --trend benchmark.json --trend sample-mismatch-baseline.json --trend-out incompatible-trend.json > incompatible-trend.stdout.json
-node "$ROOT/tests/validators/benchmark-smoke.js" incompatible-trend incompatible-trend.json
+grep -q "requires --allow-codex-run" missing-allow-codex-run.log

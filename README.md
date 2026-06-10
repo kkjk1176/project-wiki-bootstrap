@@ -32,37 +32,15 @@ The core idea is not "write more docs." It is "keep the first agent read small, 
 
 Benchmarks are maintainer release evidence, not a public user workflow. They exist so README and release notes can make bounded claims with numbers instead of vague performance language.
 
-Latest clean large report: `benchmarks/reports/current-large.json`, generated 2026-06-10T06:06:44.178Z on Node v22.19.0, darwin arm64, Apple M4 Pro, commit `9ddec8521a43`, 5 measured runs with 1 discarded warmup run. Timing status was `variable`; unstable metrics were `code.tree_sitter_code_index_ms`; the report source-control fingerprint was clean.
+Current local measured report: `benchmarks/reports/llm/current-local.json` and `benchmarks/reports/llm/current-local.md`, generated 2026-06-10 with ChatGPT/Codex auth, `gpt-5.5`, `decision_lookup`, 1 measured run per condition, no warmup. These values are real Codex JSONL usage and local wall-clock measurements. Positive deltas mean the Project Librarian condition used more than the no-Project-Librarian control.
 
-Comparison baseline: for wiki routing rows, "without Project Librarian" means a naive full-wiki Markdown scan; "with Project Librarian" means `wiki/startup.md` + `wiki/index.md` + the query-returned target document. For the code-update row, the comparison is full code-index rebuild versus Project Librarian incremental reindexing.
-
-| Workload | Without Project Librarian | With Project Librarian | Difference |
+| Scale | Without Project Librarian | With Project Librarian | Actual delta |
 | --- | ---: | ---: | ---: |
-| Docs-heavy wiki, 500 pages | 868,731 estimated Markdown tokens; 7.594ms full-wiki read | 2,260 estimated Markdown tokens; 0.035ms targeted read | 99.74% less context; 99.53% less read time |
-| Monorepo wiki, 320 pages | 407,584 estimated Markdown tokens; 4.604ms full-wiki read | 2,339 estimated Markdown tokens; 0.035ms targeted read | 99.43% less context; 99.24% less read time |
-| Scoped router wiki, 720 pages | 988,117 estimated Markdown tokens; 10.731ms full-wiki read | 3,839 estimated Markdown tokens; 0.048ms targeted read | 99.61% less context; 99.59% less read time |
-| Code index update, 1,608 files | 341.451ms full rebuild | 187.588ms incremental reindex for 2 changed files | 45.36% less wall-clock time |
+| Small | 102,655 total tokens; 101,226 input; 37.15s; 9 command invocations | 176,104 total tokens; 173,733 input; 61.04s; 15 command invocations | +71.55% tokens; +64.33% time; +66.67% commands |
+| Medium | 79,340 total tokens; 78,348 input; 44.28s; 5 command invocations | 165,840 total tokens; 163,856 input; 48.48s; 10 command invocations | +109.02% tokens; +9.5% time; +100% commands |
+| Large | 197,097 total tokens; 195,278 input; 45.87s; 10 command invocations | 183,959 total tokens; 181,897 input; 49.42s; 13 command invocations | -6.67% tokens; +7.72% time; +30% commands |
 
-Additional measured evidence:
-
-| Metric | Measured value | Comparison status |
-| --- | ---: | --- |
-| Median estimated Markdown context avoidance | 99.61% | Derived from paired full-wiki vs targeted-context rows |
-| Median read-time reduction | 99.53% | Derived from paired full-wiki vs targeted-context rows |
-| Architecture report time | 258.757ms | Measured capability timing; no no-Project-Librarian baseline |
-| Architecture report evidence tables | 6 | Measured capability output |
-| Architecture report routes | 24 | Measured capability output |
-| Tree-sitter code-index time | 653.668ms | Measured capability timing; unstable in this run |
-| Tree-sitter parser profiles | 14 | Measured capability output |
-| Sample repo median code-index time | 136.278ms | Observational timing for explicit sample repos |
-| Sample repo median architecture report time | 137.325ms | Observational timing for explicit sample repos |
-| Benchmark runs | 5 | Measurement protocol |
-| Warmup runs | 1 | Measurement protocol |
-| Timing status | variable | `code.tree_sitter_code_index_ms` was unstable |
-| Claimable metrics | 20 | Timing claimability |
-| Unstable metrics | code.tree_sitter_code_index_ms | Requires rerun before release timing claims |
-
-Claim boundary: token estimates use `ceil(characters / 4)` as a Markdown context-size estimate. They are not model tokenizer output, API billing counters, or measured real LLM token consumption. The benchmark compares the wiki context read by targeted retrieval against a naive full-wiki scan that reads every wiki Markdown file in the fixture. Code-index metrics are local CLI subprocess timings over generated and sample repositories; sample repo values are observational evidence for those explicit fixtures.
+Claim boundary: this approved local run passed the benchmark claim gate, but it is not a clean release baseline. It used a dirty worktree, one run per condition, and post-run fixture fingerprint validation needs a clean isolated rerun because runtime state files touched the generated fixture directories. Do not claim token or time improvement from Project Librarian until repeated clean actual-LLM runs show stable deltas.
 
 ## Install
 

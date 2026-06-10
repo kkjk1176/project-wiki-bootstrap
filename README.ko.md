@@ -32,37 +32,15 @@ Project Librarian은 에이전트에게 두 가지 로컬 정본을 제공합니
 
 벤치마크는 관리자 릴리스 근거이며 공개 사용자 작업 흐름이 아닙니다. README와 릴리스 노트가 모호한 성능 표현 대신 경계가 있는 숫자로 설명할 수 있게 하기 위한 근거입니다.
 
-최신 clean 대규모 보고서: `benchmarks/reports/current-large.json`, 2026-06-10T06:06:44.178Z 생성, Node v22.19.0, darwin arm64, Apple M4 Pro, commit `9ddec8521a43`, 측정 실행 5회와 버린 예열 실행 1회. 시간 측정 상태는 `variable`, unstable metrics는 `code.tree_sitter_code_index_ms`이며 git 상태 지문은 clean입니다.
+현재 로컬 측정 보고서: `benchmarks/reports/llm/current-local.json`, `benchmarks/reports/llm/current-local.md`, 2026-06-10 생성, ChatGPT/Codex 인증, `gpt-5.5`, `decision_lookup`, 조건별 측정 1회, 예열 없음. 아래 값은 실제 Codex JSONL usage와 로컬 wall-clock 측정값입니다. 양수 delta는 Project Librarian 조건이 미사용 control보다 더 많이 사용했다는 뜻입니다.
 
-비교 기준: 위키 라우팅 행에서 “Project Librarian 미사용”은 naive full-wiki Markdown scan을 뜻하고, “사용”은 `wiki/startup.md` + `wiki/index.md` + query가 반환한 target 문서만 읽는 targeted retrieval을 뜻합니다. 코드 업데이트 행은 전체 코드 인덱스 rebuild와 Project Librarian 증분 reindex를 비교합니다.
-
-| 작업 부하 | Project Librarian 미사용 | Project Librarian 사용 | 차이 |
+| 규모 | Project Librarian 미사용 | Project Librarian 사용 | 실제 delta |
 | --- | ---: | ---: | ---: |
-| 문서가 많은 위키, 500페이지 | Markdown 추정 868,731토큰; full-wiki read 7.594ms | Markdown 추정 2,260토큰; targeted read 0.035ms | 컨텍스트 99.74% 적음; 읽기 시간 99.53% 짧음 |
-| 모노레포 위키, 320페이지 | Markdown 추정 407,584토큰; full-wiki read 4.604ms | Markdown 추정 2,339토큰; targeted read 0.035ms | 컨텍스트 99.43% 적음; 읽기 시간 99.24% 짧음 |
-| 범위별 라우터 위키, 720페이지 | Markdown 추정 988,117토큰; full-wiki read 10.731ms | Markdown 추정 3,839토큰; targeted read 0.048ms | 컨텍스트 99.61% 적음; 읽기 시간 99.59% 짧음 |
-| 코드 인덱스 업데이트, 1,608파일 | 전체 rebuild 341.451ms | 변경 파일 2개 증분 reindex 187.588ms | wall-clock 45.36% 짧음 |
+| 소형 | total 102,655 tokens; input 101,226; 37.15s; command 9회 | total 176,104 tokens; input 173,733; 61.04s; command 15회 | tokens +71.55%; time +64.33%; commands +66.67% |
+| 중형 | total 79,340 tokens; input 78,348; 44.28s; command 5회 | total 165,840 tokens; input 163,856; 48.48s; command 10회 | tokens +109.02%; time +9.5%; commands +100% |
+| 대형 | total 197,097 tokens; input 195,278; 45.87s; command 10회 | total 183,959 tokens; input 181,897; 49.42s; command 13회 | tokens -6.67%; time +7.72%; commands +30% |
 
-추가 측정 근거:
-
-| 항목 | 측정값 | 비교 상태 |
-| --- | ---: | --- |
-| Markdown 컨텍스트 추정 회피량 중앙값 | 99.61% | full-wiki vs targeted-context 비교 행에서 산출 |
-| 읽기 시간 감소 중앙값 | 99.53% | full-wiki vs targeted-context 비교 행에서 산출 |
-| 아키텍처 보고서 시간 | 258.757ms | 기능 타이밍 측정값; no-Project-Librarian baseline 없음 |
-| 아키텍처 보고서 근거 테이블 | 6 | 기능 출력 측정값 |
-| 아키텍처 보고서 라우트 | 24 | 기능 출력 측정값 |
-| Tree-sitter 코드 인덱스 시간 | 653.668ms | 기능 타이밍 측정값; 이번 run에서 unstable |
-| Tree-sitter parser profiles | 14 | 기능 출력 측정값 |
-| 샘플 저장소 코드 인덱스 시간 중앙값 | 136.278ms | 명시적 샘플 저장소 관측 타이밍 |
-| 샘플 저장소 아키텍처 보고서 시간 중앙값 | 137.325ms | 명시적 샘플 저장소 관측 타이밍 |
-| 벤치마크 실행 | 5 | 측정 protocol |
-| 예열 실행 | 1 | 측정 protocol |
-| 시간 측정 상태 | variable | `code.tree_sitter_code_index_ms`가 unstable |
-| claimable metrics | 20 | timing claim 가능 항목 |
-| 불안정한 측정값 | code.tree_sitter_code_index_ms | release timing claim 전 rerun 필요 |
-
-주장 범위: 토큰 추정치는 `ceil(characters / 4)`를 사용한 Markdown 컨텍스트 크기 추정입니다. 모델 토크나이저 출력이나 API 과금 카운터가 아니며, 실제 LLM 토큰 사용량을 측정하지 않습니다. 벤치마크는 targeted retrieval로 읽는 위키 컨텍스트가 fixture의 모든 위키 Markdown 파일을 읽는 naive full-wiki scan 대비 얼마나 많은 Markdown 컨텍스트 입력을 피하는지 비교합니다. 코드 인덱스 측정값은 생성/샘플 저장소에서 측정한 로컬 CLI 하위 프로세스 시간입니다.
+주장 범위: 이 승인된 로컬 실행은 benchmark claim gate를 통과했지만 clean release baseline은 아닙니다. dirty worktree, 조건별 1회 실행이며, 런타임 상태 파일이 생성 fixture 디렉터리를 건드렸기 때문에 post-run fixture fingerprint validator는 clean isolated rerun이 필요합니다. 반복 clean actual-LLM 실행에서 안정적인 delta가 나오기 전까지 Project Librarian의 토큰/시간 개선을 주장하지 않습니다.
 
 ## 설치
 

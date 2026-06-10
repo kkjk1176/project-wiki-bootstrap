@@ -32,37 +32,15 @@ Project Librarian 给代理两个本地事实来源。
 
 基准是维护者发布依据，不是公开用户工作流。它让 README 和发布说明用有边界的数字说明价值，而不是使用模糊性能描述。
 
-最新 clean 大规模报告：`benchmarks/reports/current-large.json`，生成于 2026-06-10T06:06:44.178Z，Node v22.19.0，darwin arm64，Apple M4 Pro，commit `9ddec8521a43`，5 次测量运行和 1 次丢弃的预热运行。时间测量状态为 `variable`；unstable metrics 为 `code.tree_sitter_code_index_ms`；git 状态指纹为 clean。
+当前本地测量报告：`benchmarks/reports/llm/current-local.json` 和 `benchmarks/reports/llm/current-local.md`，生成于 2026-06-10，ChatGPT/Codex auth，`gpt-5.5`，`decision_lookup`，每个条件 1 次测量运行，无预热。以下值是真实 Codex JSONL usage 和本地 wall-clock 测量。正 delta 表示 Project Librarian 条件比 no-Project-Librarian control 使用更多。
 
-比较基准：wiki 路由行里的“未使用 Project Librarian”指 naive full-wiki Markdown scan；“使用 Project Librarian”指只读取 `wiki/startup.md`、`wiki/index.md` 和 query 返回的 target 文档。代码更新行比较全量代码索引 rebuild 与 Project Librarian 增量 reindex。
-
-| 工作负载 | 未使用 Project Librarian | 使用 Project Librarian | 差异 |
+| Scale | 未使用 Project Librarian | 使用 Project Librarian | 实测 delta |
 | --- | ---: | ---: | ---: |
-| 文档密集 wiki，500页 | Markdown 估算 868,731 tokens；full-wiki read 7.594ms | Markdown 估算 2,260 tokens；targeted read 0.035ms | 上下文减少 99.74%；读取时间减少 99.53% |
-| Monorepo wiki，320页 | Markdown 估算 407,584 tokens；full-wiki read 4.604ms | Markdown 估算 2,339 tokens；targeted read 0.035ms | 上下文减少 99.43%；读取时间减少 99.24% |
-| 分范围路由 wiki，720页 | Markdown 估算 988,117 tokens；full-wiki read 10.731ms | Markdown 估算 3,839 tokens；targeted read 0.048ms | 上下文减少 99.61%；读取时间减少 99.59% |
-| 代码索引更新，1,608个文件 | 全量 rebuild 341.451ms | 2 个变更文件增量 reindex 187.588ms | wall-clock 减少 45.36% |
+| Small | total 102,655 tokens; input 101,226; 37.15s; command 9次 | total 176,104 tokens; input 173,733; 61.04s; command 15次 | tokens +71.55%; time +64.33%; commands +66.67% |
+| Medium | total 79,340 tokens; input 78,348; 44.28s; command 5次 | total 165,840 tokens; input 163,856; 48.48s; command 10次 | tokens +109.02%; time +9.5%; commands +100% |
+| Large | total 197,097 tokens; input 195,278; 45.87s; command 10次 | total 183,959 tokens; input 181,897; 49.42s; command 13次 | tokens -6.67%; time +7.72%; commands +30% |
 
-其他测量依据：
-
-| 指标 | 测量值 | 比较状态 |
-| --- | ---: | --- |
-| Markdown 上下文估算避免量中位数 | 99.61% | 从 full-wiki vs targeted-context 比较行得出 |
-| 读取时间降低中位数 | 99.53% | 从 full-wiki vs targeted-context 比较行得出 |
-| 架构报告时间 | 258.757ms | 功能计时测量值；没有 no-Project-Librarian baseline |
-| 架构报告依据表 | 6 | 功能输出测量值 |
-| 架构报告 route | 24 | 功能输出测量值 |
-| Tree-sitter 代码索引时间 | 653.668ms | 功能计时测量值；本次 run 中 unstable |
-| Tree-sitter parser profiles | 14 | 功能输出测量值 |
-| 样本仓库代码索引时间中位数 | 136.278ms | 明确样本仓库的观测计时 |
-| 样本仓库架构报告时间中位数 | 137.325ms | 明确样本仓库的观测计时 |
-| 基准运行 | 5 | 测量 protocol |
-| 预热运行 | 1 | 测量 protocol |
-| 时间测量状态 | variable | `code.tree_sitter_code_index_ms` 为 unstable |
-| Claimable metrics | 20 | 可作为 timing claim 的指标 |
-| 不稳定指标 | code.tree_sitter_code_index_ms | release timing claim 前需要 rerun |
-
-声明边界：token 估算值是使用 `ceil(characters / 4)` 得到的 Markdown 上下文大小估算。它不是模型 tokenizer 输出，也不是 API 计费计数器，更不是实际 LLM token 使用量。基准比较 targeted retrieval 读取的 wiki 上下文，相比读取 fixture 中所有 wiki Markdown 文件的 naive full-wiki scan，能避免多少 Markdown 上下文输入。代码索引指标是在生成/样本仓库上测得的本地 CLI 子进程时间。
+声明边界：这次经批准的本地运行通过了 benchmark claim gate，但不是 clean release baseline。它基于 dirty worktree、每个条件只运行 1 次，而且 runtime state files 触碰了生成的 fixture 目录，因此 post-run fixture fingerprint validator 需要 clean isolated rerun。在重复的 clean actual-LLM 运行显示稳定 delta 前，不声明 Project Librarian 改善 token 或时间。
 
 ## 安装
 
